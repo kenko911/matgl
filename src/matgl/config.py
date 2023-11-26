@@ -5,6 +5,9 @@ import os
 import shutil
 from pathlib import Path
 
+# Coulomb conversion
+COULOMB_CONSTANT = 14.399645478425668
+
 # Default set of elements supported by universal matgl models.
 DEFAULT_ELEMENTS = (
     "H",

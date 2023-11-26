@@ -17,6 +17,7 @@ import scipy.sparse as sp
 from ase import Atoms, units
 from ase.calculators.calculator import Calculator, all_changes
 from ase.constraints import ExpCellFilter
+from ase.data import atomic_numbers, covalent_radii
 from ase.md import Langevin
 from ase.md.andersen import Andersen
 from ase.md.npt import NPT
@@ -35,6 +36,13 @@ if TYPE_CHECKING:
     from ase.optimize.optimize import Optimizer
 
     from matgl.apps.pes import Potential
+
+
+def get_covalent_radii_list(element_types: tuple[str]) -> np.ndarray:
+    """Get covalent radius for elements in element_types."""
+    species = [atomic_numbers[element] for element in element_types]
+    covalent_radii_list = covalent_radii[species]
+    return np.array(covalent_radii_list)
 
 
 class OPTIMIZERS(Enum):
