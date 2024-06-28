@@ -6,5 +6,6 @@ from ._chgnet import CHGNet
 from ._m3gnet import M3GNet
 from ._megnet import MEGNet
 from ._so3net import SO3Net
+from ._schnet import SchNet
 from ._tensornet import TensorNet
 from ._wrappers import TransformedTargetModel
