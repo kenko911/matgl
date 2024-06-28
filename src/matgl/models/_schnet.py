@@ -215,7 +215,7 @@ class SchNet(nn.Module, IOMixIn):
         g.ndata["node_feat"] = node_feat
         if self.is_intensive:
             field_vec = self.readout(g)
-            readout_vec = torch.hstack([field_vec, state_feat]) if self.include_state else field_vec  # type: ignore
+            readout_vec = field_vec  # type: ignore
             fea_dict["readout"] = readout_vec
             output = self.final_layer(readout_vec)
             if self.task_type == "classification":
