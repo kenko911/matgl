@@ -4,8 +4,8 @@ One of the earliest graph neural network model architectures for constructing ma
 For more details on SchNet,
 please refer to::
 
-    K. T. Schütt, H. E. Sauceda, P.-J. Kindermans, A. Tkatchenko, K.-R. Müller; SchNet
-    – A deep learning architecture for molecules and materials. J. Chem. Phys. 28 June 2018; 148 (24): 241722.
+    K. T. Schütt, H. E. Sauceda, P. J. Kindermans, A. Tkatchenko, K. R. Müller; SchNet:
+    A deep learning architecture for molecules and materials. J. Chem. Phys. 28 June 2018; 148 (24): 241722.
     https://doi.org/10.1063/1.5019779
 
 """
@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING, Literal
 
 import dgl
 import torch
+from dgl.nn.pytorch.conv import CFConv
 from torch import nn
 
-from dgl.nn.pytorch.conv import CFConv
 from matgl.config import DEFAULT_ELEMENTS
 from matgl.graph.compute import (
     compute_pair_vector_and_distance,
@@ -50,10 +50,6 @@ class SchNet(nn.Module, IOMixIn):
         self,
         element_types: tuple[str, ...] = DEFAULT_ELEMENTS,
         dim_node_embedding: int = 64,
-        dim_edge_embedding: int = 64,
-        dim_state_embedding: int = 0,
-        ntypes_state: int | None = None,
-        dim_state_feats: int | None = None,
         max_n: int = 3,
         max_l: int = 3,
         nblocks: int = 3,
@@ -69,7 +65,6 @@ class SchNet(nn.Module, IOMixIn):
         niters_set2set: int = 3,
         nlayers_set2set: int = 3,
         field: Literal["node_feat", "edge_feat"] = "node_feat",
-        include_state: bool = False,
         activation_type: Literal["swish", "tanh", "sigmoid", "softplus2", "softexp"] = "swish",
         **kwargs,
     ):
@@ -78,9 +73,6 @@ class SchNet(nn.Module, IOMixIn):
             element_types (tuple): List of elements appearing in the dataset. Default to DEFAULT_ELEMENTS.
             dim_node_embedding (int): Number of embedded atomic features
             dim_edge_embedding (int): Number of edge features
-            dim_state_embedding (int): Number of hidden neurons in state embedding
-            dim_state_feats (int): Number of state features after linear layer
-            ntypes_state (int): Number of state labels
             max_n (int): Number of radial basis expansion
             max_l (int): Number of angular expansion
             nblocks (int): Number of convolution blocks
@@ -96,7 +88,6 @@ class SchNet(nn.Module, IOMixIn):
             field (str): Using either "node_feat" or "edge_feat" for Set2Set and Reduced readout
             niters_set2set (int): Number of set2set iterations
             nlayers_set2set (int): Number of set2set layers
-            include_state (bool): Whether to include states features
             activation_type (str): Activation type. choose from 'swish', 'tanh', 'sigmoid', 'softplus2', 'softexp'
             **kwargs: For future flexibility. Not used at the moment.
         """
@@ -142,7 +133,7 @@ class SchNet(nn.Module, IOMixIn):
                     n_layers=nlayers_set2set,
                     field=field,
                 )
-                readout_feats = 2 * input_feats + dim_state_feats if include_state else 2 * input_feats  # type: ignore
+                readout_feats = 2 * input_feats  # type: ignore
             elif readout_type == "weighted_atom":
                 self.readout = WeightedAtomReadOut(in_feats=input_feats, dims=[units, units], activation=activation)
                 readout_feats = units  # type: ignore
@@ -169,7 +160,6 @@ class SchNet(nn.Module, IOMixIn):
         self.n_blocks = nblocks
         self.units = units
         self.cutoff = cutoff
-        self.include_state = include_state
         self.task_type = task_type
         self.is_intensive = is_intensive
 
@@ -215,7 +205,7 @@ class SchNet(nn.Module, IOMixIn):
         g.ndata["node_feat"] = node_feat
         if self.is_intensive:
             field_vec = self.readout(g)
-            readout_vec = torch.hstack([field_vec, state_feat]) if self.include_state else field_vec  # type: ignore
+            readout_vec = field_vec  # type: ignore
             fea_dict["readout"] = readout_vec
             output = self.final_layer(readout_vec)
             if self.task_type == "classification":
