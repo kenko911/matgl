@@ -2099,7 +2099,7 @@ wheels = [
 
 [[package]]
 name = "matgl"
-version = "2.0.4"
+version = "2.0.6"
 source = { editable = "." }
 dependencies = [
     { name = "ase" },
@@ -2151,7 +2151,7 @@ requires-dist = [
     { name = "numpy", specifier = "<3.0" },
     { name = "pydantic" },
     { name = "pymatgen" },
-    { name = "torch", specifier = "<=2.7.0" },
+    { name = "torch", specifier = "<=2.8.0" },
     { name = "torch-geometric" },
     { name = "torchdata" },
 ]

@@ -6,6 +6,9 @@ nav_order: 3
 
 # Change Log
 
+## 2.0.6
+- Bug fix for CHGnet loading.
+
 ## 2.0.5
 - Improved error messages for backend/model mismatch. Try to transparently handle simple situations.
 
