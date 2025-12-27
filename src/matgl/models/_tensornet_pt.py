@@ -19,19 +19,13 @@ from torch_geometric.data import Batch, Data
 
 import matgl
 from matgl.config import DEFAULT_ELEMENTS
-from matgl.graph._compute_pyg import (
-    compute_pair_vector_and_distance,
-)
 from matgl.layers import (
-    MLP,
     ActivationFunction,
     BondExpansion,
 )
 from matgl.layers._embedding_pyg import TensorEmbedding
 from matgl.layers._graph_convolution_pyg import TensorNetInteraction
 from matgl.layers._readout_pyg import (
-    ReduceReadOut,
-    WeightedAtomReadOut,
     WeightedReadOut,
 )
 from matgl.utils.maths import decompose_tensor, scatter_add, tensor_norm
@@ -42,6 +36,35 @@ if TYPE_CHECKING:
     from matgl.graph._converters_pyg import GraphConverter
 
 logger = logging.getLogger(__file__)
+
+
+def compute_pair_vector_and_distance(
+    pos: torch.Tensor,
+    edge_index: torch.Tensor,
+    pbc_offshift: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Calculate bond vectors and distances.
+
+    Args:
+        pos: Node positions, shape (num_nodes, 3)
+        edge_index: Edge indices, shape (2, num_edges)
+        pbc_offshift: Periodic boundary condition offsets, shape (num_edges, 3)
+
+    Returns:
+        bond_vec: Bond vectors, shape (num_edges, 3)
+        bond_dist: Bond distances, shape (num_edges,)
+    """
+    src_idx, dst_idx = edge_index[0], edge_index[1]
+    src_pos = pos[src_idx]
+    dst_pos = pos[dst_idx]
+
+    if pbc_offshift is not None:
+        dst_pos = dst_pos + pbc_offshift
+
+    bond_vec = dst_pos - src_pos
+    bond_dist = torch.norm(bond_vec, dim=1)
+
+    return bond_vec, bond_dist
 
 
 class TensorNet(MatGLModel):
@@ -177,27 +200,14 @@ class TensorNet(MatGLModel):
         self.out_norm = nn.LayerNorm(3 * units, dtype=dtype)
         self.linear = nn.Linear(3 * units, units, dtype=dtype)
         if is_intensive:
-            input_feats = units
-            if readout_type == "weighted_atom":
-                self.readout = WeightedAtomReadOut(in_feats=input_feats, dims=[units, units], activation=activation)  # type:ignore[assignment]
-                readout_feats = units
-            else:
-                self.readout = ReduceReadOut("mean", field=field)  # type: ignore
-                readout_feats = input_feats  # type: ignore
-
-            dims_final_layer = [readout_feats, units, units, ntargets]
-            self.final_layer = MLP(dims_final_layer, activation, activate_last=False)
-            if task_type == "classification":
-                self.sigmoid = nn.Sigmoid()
-
-        else:
-            if task_type == "classification":
-                raise ValueError("Classification task cannot be extensive.")
-            self.final_layer = WeightedReadOut(
-                in_feats=units,
-                dims=[units, units],
-                num_targets=ntargets,  # type: ignore
-            )
+            raise NotImplementedError("Intensive property prediction is not implemented yet.")
+        if task_type == "classification":
+            raise ValueError("Classification task cannot be extensive.")
+        self.final_layer = WeightedReadOut(
+            in_feats=units,
+            dims=[units, units],
+            num_targets=ntargets,  # type: ignore
+        )
 
         self.is_intensive = is_intensive
         self.reset_parameters()
@@ -208,45 +218,57 @@ class TensorNet(MatGLModel):
             layer.reset_parameters()
         self.out_norm.reset_parameters()
 
-    def forward(self, g: Data, state_attr: torch.Tensor | None = None, **kwargs):
+    def forward(self, g: dict[str, torch.Tensor] | Data, state_attr: torch.Tensor | None = None, **kwargs):
         """
-
         Args:
-            g : PyG Graph for a batch of graphs.
-            state_attr: State attrs for a batch of graphs.
+            g: Either a PyG Data object or a dict with keys:
+                - 'node_type' or 'z': Node types, shape (num_nodes,)
+                - 'pos': Node positions, shape (num_nodes, 3)
+                - 'edge_index': Edge indices, shape (2, num_edges)
+                - 'pbc_offshift': Optional PBC offsets, shape (num_edges, 3)
+                - 'batch': Optional batch indices, shape (num_nodes,)
+            state_attr: State attrs for a batch of graphs (not used currently).
             **kwargs: For future flexibility. Not used at the moment.
 
         Returns:
-            output: output: Output property for a batch of graphs
+            output: Output property for a batch of graphs
         """
+        if isinstance(g, dict):
+            z = g.get("node_type", g.get("z"))
+            pos = g["pos"]
+            edge_index = g["edge_index"]
+            pbc_offshift = g.get("pbc_offshift", None)
+            batch = g.get("batch", None)
+            num_graphs = g.get("num_graphs", None)
+        else:
+            # PyG Data object - extract tensors
+            z = getattr(g, "node_type", getattr(g, "z", None))
+            pos = g.pos  # type: ignore[union-attr]
+            edge_index = g.edge_index  # type: ignore[union-attr]
+            pbc_offshift = getattr(g, "pbc_offshift", None)
+            batch = getattr(g, "batch", None)
+            num_graphs = getattr(g, "num_graphs", None)
+
+        num_graphs = int(num_graphs) if num_graphs is not None else 1
         # Obtain graph, with distances and relative position vectors
-        bond_vec, bond_dist = compute_pair_vector_and_distance(g)
-        g.bond_vec = bond_vec
-        g.bond_dist = bond_dist
+        bond_vec, bond_dist = compute_pair_vector_and_distance(pos, edge_index, pbc_offshift)
 
         # Expand distances with radial basis functions
-        g.edge_attr = self.bond_expansion(g.bond_dist)
+        edge_attr = self.bond_expansion(bond_dist)
         # Embedding layer
-        X, _ = self.tensor_embedding(g.node_type, g.edge_index, g.edge_attr, g.bond_dist, g.bond_vec, state_attr)
+        X, _ = self.tensor_embedding(z, edge_index, edge_attr, bond_dist, bond_vec, state_attr)
         # Interaction layers
         for layer in self.layers:
-            X = layer(g.edge_index, g.bond_dist, g.edge_attr, X)
+            X = layer(edge_index, bond_dist, edge_attr, X)
         scalars, skew_metrices, traceless_tensors = decompose_tensor(X)
 
         x = torch.cat((tensor_norm(scalars), tensor_norm(skew_metrices), tensor_norm(traceless_tensors)), dim=-1)
         x = self.out_norm(x)
         x = self.linear(x)
 
-        g.node_feat = x
-
         if self.is_intensive:
-            node_vec = self.readout(g)
-            vec = node_vec  # type: ignore
-            output = self.final_layer(vec)
-            if self.task_type == "classification":
-                output = self.sigmoid(output)
-            return torch.squeeze(output)
-        atomic_energies = self.final_layer(g.node_feat)
+            raise NotImplementedError("Intensive property prediction is not implemented yet.")
+        atomic_energies = self.final_layer(x)
         if isinstance(g, Batch) and hasattr(g, "batch") and g.batch is not None:
             # edge case, if we do squeeze() directly, we will get torch.size([]) and it will crash in the training.
             if atomic_energies.shape == (1, 1):
@@ -254,7 +276,7 @@ class TensorNet(MatGLModel):
             else:
                 atomic_energies = atomic_energies.squeeze()
             # Batch case: Use scatter_add with batch tensor
-            return scatter_add(atomic_energies, g.batch, dim_size=g.num_graphs)
+            return scatter_add(atomic_energies, batch, num_graphs)
         # Single graph case: Sum all energies (equivalent to scatter_add with all nodes in one graph)
         return torch.sum(atomic_energies, dim=0, keepdim=True).squeeze()
 

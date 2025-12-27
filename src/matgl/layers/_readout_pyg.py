@@ -67,16 +67,20 @@ class WeightedReadOut(nn.Module):
         self.dims = [in_feats, *dims, num_targets]
         self.gated = GatedMLP(in_feats=in_feats, dims=self.dims, activate_last=False)
 
-    def forward(self, graph: Data) -> torch.Tensor:
+    def forward(self, node_feat: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            graph (Data): PyG Data object containing node features (data.node_feat).
+        node_feat (torch.Tensor):
+            Per-node input features.
+            Shape: (num_nodes, num_node_features).
 
         Returns:
-            atomic_properties (torch.Tensor): Per-node atomic properties, shape (num_nodes, num_targets).
+        atomic_properties (torch.Tensor):
+            Per-node atomic properties.
+            Shape: (num_nodes, num_targets).
         """
-        atomic_properties = self.gated(graph.node_feat)
+        atomic_properties = self.gated(node_feat)
         return atomic_properties
 
 

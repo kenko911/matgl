@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import torch
 from torch import nn
 
@@ -16,9 +14,6 @@ from matgl.utils.maths import (
     vector_to_skewtensor,
     vector_to_symtensor,
 )
-
-if TYPE_CHECKING:
-    from torch_geometric.data import Data
 
 
 class TensorEmbedding(nn.Module):
@@ -91,27 +86,59 @@ class TensorEmbedding(nn.Module):
         traceless_tensors = Zij[..., None, None] * Sij
         return {"I": scalars, "A": skew_matrices, "S": traceless_tensors}
 
-    def aggregate(self, graph, index, dim_size=None):
+    def aggregate(self, msg, index, dim_size=None):
         """Aggregate messages for node updates."""
-        scalars = scatter_add(graph.I, index, dim_size=dim_size)
-        skew_matrices = scatter_add(graph.A, index, dim_size=dim_size)
-        traceless_tensors = scatter_add(graph.S, index, dim_size=dim_size)
+        scalars = scatter_add(msg["I"], index, dim_size=dim_size)
+        skew_matrices = scatter_add(msg["A"], index, dim_size=dim_size)
+        traceless_tensors = scatter_add(msg["S"], index, dim_size=dim_size)
         return scalars, skew_matrices, traceless_tensors
 
-    def forward(self, graph: Data, state_attr=None):
+    def forward(
+        self,
+        z: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_vec: torch.Tensor,
+        state_attr=None,
+    ):
         """
         Args:
-            graph (torch_geometric.data.Data): Graph data with node features (x), edge indices (edge_index),
-                                             edge attributes (edge_attr), and bond distances (bond_dist).
-            state_attr (torch.Tensor, optional): Global state attributes.
+        z (torch.Tensor):
+            Node-wise features, e.g. atomic embeddings or species encodings.
+            Shape: (num_nodes, hidden_channels) or (num_nodes,).
+
+        edge_index (torch.Tensor):
+            Graph connectivity in COO format specifying source and target nodes.
+            Shape: (2, num_edges).
+
+        edge_attr (torch.Tensor):
+            Edge-wise attributes encoding geometric or chemical information
+            (e.g. radial basis expansion or bond features).
+            Shape: (num_edges, num_edge_features).
+
+        edge_weight (torch.Tensor):
+            Edge distance between sorce and target nodes.
+            Shape: (num_edges,) or (num_edges, 1).
+
+        edge_vec (torch.Tensor):
+            Edge direction vectors from source to target nodes.
+            Shape: (num_edges, 3).
+
+        state_attr (torch.Tensor, optional):
+            Global (graph-level) state attributes shared by all nodes
+            (e.g. external conditions or control parameters).
+            Shape: (num_graphs, state_dim).
 
         Returns:
-            X (torch.Tensor): Embedded node tensor representation.
-            state_feat (torch.Tensor): Embedded state features.
-        """
-        z, edge_index, edge_attr, edge_weight = graph.node_type, graph.edge_index, graph.edge_attr, graph.bond_dist
-        edge_vec = graph.bond_vec
+        x (torch.Tensor):
+            Updated node representations after message passing.
+            Shape: (num_nodes, hidden_channels).
 
+        state_feat (torch.Tensor):
+            Updated global state features.
+            Shape: (num_graphs, state_hidden_channels).
+        """
         # Node embedding
         x = self.emb(z)  # Assuming node_type is integer for embedding
 
@@ -146,8 +173,7 @@ class TensorEmbedding(nn.Module):
             Sij=Sij,
         )
 
-        graph.I, graph.A, graph.S = msg["I"], msg["A"], msg["S"]
-        scalars, skew_matrices, traceless_tensors = self.aggregate(graph, edge_index[1], dim_size=x.size(0))
+        scalars, skew_matrices, traceless_tensors = self.aggregate(msg, edge_index[1], dim_size=x.size(0))
 
         # Node update
         norm = tensor_norm(scalars + skew_matrices + traceless_tensors)
