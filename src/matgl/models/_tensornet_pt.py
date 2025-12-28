@@ -233,6 +233,8 @@ class TensorNet(MatGLModel):
         Returns:
             output: Output property for a batch of graphs
         """
+        batch: torch.Tensor | None
+        num_graphs: int | None
         if isinstance(g, dict):
             z = g.get("node_type", g.get("z"))
             pos = g["pos"]
