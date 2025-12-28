@@ -14,7 +14,6 @@ from torch_geometric.data import Batch, Data, Dataset
 from tqdm import trange
 
 import matgl
-from matgl.graph._compute_pyg import compute_pair_vector_and_distance
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -248,28 +247,9 @@ class MGLDataset(Dataset):
                 assert self.converter is not None, "converter must be provided"
                 data, lattice, state_attr = self.converter.get_graph(structure)
 
-                # Add position coordinates
-                data.pos = torch.tensor(structure.cart_coords, dtype=matgl.float_th)
-
-                # Compute bond vectors and distances
-                bond_vec, bond_dist = compute_pair_vector_and_distance(data.pos, data.edge_index, data.pbc_offshift)
-                data.bond_vec = bond_vec
-                data.bond_dist = bond_dist
-
-                # Compute PBC offsets (if not already in edge_attr)
-                if not hasattr(data, "edge_attr") or data.edge_attr is None:
-                    data.pbc_offshift = torch.zeros_like(bond_vec)
-                else:
-                    data.pbc_offshift = torch.matmul(data.edge_attr, lattice[0])
-
                 graphs.append(data)
                 lattices.append(lattice)
                 state_attrs.append(state_attr)
-
-                # Remove temporary attributes
-                del data.pos
-                if hasattr(data, "pbc_offshift"):
-                    del data.pbc_offshift
 
             state_attrs_tensor: torch.Tensor = (
                 torch.tensor(self.graph_labels, dtype=torch.long)
