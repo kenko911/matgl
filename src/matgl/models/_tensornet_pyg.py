@@ -220,7 +220,7 @@ class TensorNet(MatGLModel):
             output: output: Output property for a batch of graphs
         """
         # Obtain graph, with distances and relative position vectors
-        bond_vec, bond_dist = compute_pair_vector_and_distance(g)
+        bond_vec, bond_dist = compute_pair_vector_and_distance(g.pos, g.edge_index, g.pbc_offshift)
         g.bond_vec = bond_vec
         g.bond_dist = bond_dist
 

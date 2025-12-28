@@ -10,30 +10,29 @@ if TYPE_CHECKING:
     from torch_geometric.data import Data
 
 
-def compute_pair_vector_and_distance(graph: Data) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Calculate bond vectors and distances using PyTorch Geometric Data object.
+def compute_pair_vector_and_distance(
+    pos: torch.Tensor,
+    edge_index: torch.Tensor,
+    pbc_offshift: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Calculate bond vectors and distances.
 
     Args:
-        graph: PyTorch Geometric Data object containing pos, edge_index, and pbc_offshift.
+        pos: Node positions, shape (num_nodes, 3)
+        edge_index: Edge indices, shape (2, num_edges)
+        pbc_offshift: Periodic boundary condition offsets, shape (num_edges, 3)
 
     Returns:
-        Tuple containing:
-        - bond_vec (torch.Tensor): Vector from source node to destination node.
-        - bond_dist (torch.Tensor): Bond distance between two atoms.
+        bond_vec: Bond vectors, shape (num_edges, 3)
+        bond_dist: Bond distances, shape (num_edges,)
     """
-    # Get source and destination node indices from edge_index
-    src_idx, dst_idx = graph.edge_index
+    src_idx, dst_idx = edge_index[0], edge_index[1]
+    src_pos = pos[src_idx]
+    dst_pos = pos[dst_idx]
 
-    # Get positions of source and destination nodes
-    src_pos = graph.pos[src_idx]
-    dst_pos = graph.pos[dst_idx]
+    if pbc_offshift is not None:
+        dst_pos = dst_pos + pbc_offshift
 
-    # Apply periodic boundary condition offsets
-    if hasattr(graph, "pbc_offshift") and graph.pbc_offshift is not None:
-        dst_pos = dst_pos + graph.pbc_offshift
-
-    # Compute bond vectors and distances
     bond_vec = dst_pos - src_pos
     bond_dist = torch.norm(bond_vec, dim=1)
 

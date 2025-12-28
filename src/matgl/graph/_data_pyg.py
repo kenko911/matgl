@@ -252,7 +252,7 @@ class MGLDataset(Dataset):
                 data.pos = torch.tensor(structure.cart_coords, dtype=matgl.float_th)
 
                 # Compute bond vectors and distances
-                bond_vec, bond_dist = compute_pair_vector_and_distance(data)
+                bond_vec, bond_dist = compute_pair_vector_and_distance(data.pos, data.edge_index, data.pbc_offshift)
                 data.bond_vec = bond_vec
                 data.bond_dist = bond_dist
 
