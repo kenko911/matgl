@@ -220,17 +220,17 @@ class TensorNet(MatGLModel):
             output: output: Output property for a batch of graphs
         """
         # Obtain graph, with distances and relative position vectors
-        bond_vec, bond_dist = compute_pair_vector_and_distance(g)
+        bond_vec, bond_dist = compute_pair_vector_and_distance(g.pos, g.edge_index, g.pbc_offshift)
         g.bond_vec = bond_vec
         g.bond_dist = bond_dist
 
         # Expand distances with radial basis functions
         g.edge_attr = self.bond_expansion(g.bond_dist)
         # Embedding layer
-        X, _ = self.tensor_embedding(g, state_attr)
+        X, _ = self.tensor_embedding(g.node_type, g.edge_index, g.edge_attr, g.bond_dist, g.bond_vec, state_attr)
         # Interaction layers
         for layer in self.layers:
-            X = layer(g, X)
+            X = layer(g.edge_index, g.bond_dist, g.edge_attr, X)
         scalars, skew_metrices, traceless_tensors = decompose_tensor(X)
 
         x = torch.cat((tensor_norm(scalars), tensor_norm(skew_metrices), tensor_norm(traceless_tensors)), dim=-1)
@@ -246,7 +246,7 @@ class TensorNet(MatGLModel):
             if self.task_type == "classification":
                 output = self.sigmoid(output)
             return torch.squeeze(output)
-        atomic_energies = self.final_layer(g)
+        atomic_energies = self.final_layer(g.node_feat)
         if isinstance(g, Batch) and hasattr(g, "batch") and g.batch is not None:
             # edge case, if we do squeeze() directly, we will get torch.size([]) and it will crash in the training.
             if atomic_energies.shape == (1, 1):

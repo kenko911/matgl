@@ -28,7 +28,7 @@ class TestCoreAndEmbedding:
             dtype=matgl.float_th,
         )
 
-        X, state_feat = tensor_embedding(g1, state1)
+        X, state_feat = tensor_embedding(g1.node_type, g1.edge_index, g1.edge_attr, g1.bond_dist, g1.bond_vec, state1)
 
         assert [X.shape[0], X.shape[1], X.shape[2], X.shape[3]] == [2, 64, 3, 3]
         assert state_feat is None

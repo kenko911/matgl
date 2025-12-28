@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import torch
 import torch.nn as nn
 
@@ -12,9 +10,6 @@ from matgl.utils.maths import (
     scatter_add,
     tensor_norm,
 )
-
-if TYPE_CHECKING:
-    from torch_geometric.data import Data
 
 
 class TensorNetInteraction(nn.Module):
@@ -68,24 +63,37 @@ class TensorNetInteraction(nn.Module):
         for linear in self.linears_tensor:
             nn.init.xavier_uniform_(linear.weight)
 
-    def forward(self, graph: Data, X: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, edge_index: torch.Tensor, edge_weight: torch.Tensor, edge_attr: torch.Tensor, X: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
-            graph: PyTorch Geometric Data object containing graph structure.
-            X: Node tensor representations.
+        edge_index (torch.Tensor):
+            Graph connectivity in COO format specifying source and target nodes.
+            Shape: (2, num_edges).
+
+        edge_weight (torch.Tensor):
+            Edge distance between sorce and target nodes.
+            Shape: (num_edges,) or (num_edges, 1).
+
+        edge_attr (torch.Tensor):
+            Edge-wise attributes encoding geometric or chemical information.
+            Shape: (num_edges, num_edge_features).
+
+        X (torch.Tensor):
+            Node feature representations.
+            Shape: (num_nodes, hidden_channels).
 
         Returns:
-            X: Updated node tensor representations after message passing.
+        X (torch.Tensor):
+            Updated node feature representations after message passing.
+            Shape: (num_nodes, hidden_channels).
         """
-        edge_index = graph.edge_index
-        edge_weight = graph.bond_dist  # Assuming bond_dist is stored in graph
-        edge_attr = graph.edge_attr  # Assuming edge_attr is stored in graph
-
         # Process edge attributes
         C = cosine_cutoff(edge_weight, self.cutoff)
         for linear_scalar in self.linears_scalar:
             edge_attr = self.act(linear_scalar(edge_attr))
-        edge_attr = (edge_attr * C.view(-1, 1)).reshape(edge_attr.shape[0], self.units, 3)
+        edge_attr_processed = (edge_attr * C.view(-1, 1)).reshape(edge_attr.shape[0], self.units, 3)
 
         # Normalize input tensor
         X = X / (tensor_norm(X) + 1)[..., None, None]
@@ -100,12 +108,11 @@ class TensorNetInteraction(nn.Module):
         Y = scalars + skew_metrices + traceless_tensors
 
         # Message passing
-        graph.x_I = scalars
-        graph.x_A = skew_metrices
-        graph.x_S = traceless_tensors
-        graph.edge_attr_processed = edge_attr
+        x_I = scalars
+        x_A = skew_metrices
+        x_S = traceless_tensors
 
-        messages = self.message(edge_index, graph.x_I, graph.x_A, graph.x_S, graph.edge_attr_processed)
+        messages = self.message(edge_index, x_I, x_A, x_S, edge_attr_processed)
         Im, Am, Sm = self.aggregate(messages, edge_index[0], X.size(0))
         # Combine messages
         msg = Im + Am + Sm

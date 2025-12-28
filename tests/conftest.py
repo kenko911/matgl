@@ -63,7 +63,7 @@ else:
 
         graph.pbc_offshift = torch.matmul(graph.pbc_offset, lattice[0])
         graph.pos = graph.frac_coords @ lattice[0]
-        bond_vec, bond_dist = compute_pair_vector_and_distance(graph)
+        bond_vec, bond_dist = compute_pair_vector_and_distance(graph.pos, graph.edge_index, graph.pbc_offshift)
 
         graph.bond_vec = bond_vec
         graph.bond_dist = bond_dist

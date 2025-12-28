@@ -26,7 +26,7 @@ class TestGraphConv:
             units=64, degree_rbf=3, activation=nn.SiLU(), ntypes_node=1, cutoff=5.0, dtype=matgl.float_th
         )
 
-        X, _ = tensor_embedding(g1, state)
+        X, _ = tensor_embedding(g1.node_type, g1.edge_index, g1.edge_attr, g1.bond_dist, g1.bond_vec, state)
         interaction = TensorNetInteraction(
             num_rbf=3,
             units=64,
@@ -35,7 +35,7 @@ class TestGraphConv:
             dtype=matgl.float_th,
             cutoff=5.0,
         )
-        X = interaction(g1, X)
+        X = interaction(g1.edge_index, g1.bond_dist, g1.edge_attr, X)
 
         assert [X.shape[0], X.shape[1], X.shape[2], X.shape[3]] == [2, 64, 3, 3]
 
@@ -47,6 +47,6 @@ class TestGraphConv:
             dtype=matgl.float_th,
             cutoff=5.0,
         )
-        X = interaction_so3(g1, X)
+        X = interaction_so3(g1.edge_index, g1.bond_dist, g1.edge_attr, X)
 
         assert [X.shape[0], X.shape[1], X.shape[2], X.shape[3]] == [2, 64, 3, 3]
