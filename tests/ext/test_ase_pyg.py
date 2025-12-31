@@ -37,7 +37,6 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, model_tensornet):
     assert list(s_ase.get_forces().shape) == [2, 3]
     assert list(s_ase.get_stress().shape) == [6]
     assert list(calc.results["hessian"].shape) == [6, 6]
-    #    np.testing.assert_allclose(s_ase.get_potential_energy(), -10.824362, atol=1e-5, rtol=1e-6)
 
     calc = PESCalculator(potential=ff, state_attr=torch.tensor([0.0, 0.0]))
     s_ase.set_calculator(calc)
@@ -45,7 +44,6 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, model_tensornet):
     assert list(s_ase.get_forces().shape) == [2, 3]
     assert list(s_ase.get_stress().shape) == [6]
     assert list(calc.results["hessian"].shape) == [6, 6]
-    #    np.testing.assert_allclose(s_ase.get_potential_energy(), -10.824362, atol=1e-5, rtol=1e-6)
 
     calc = M3GNetCalculator(potential=ff)
     s_ase.set_calculator(calc)
@@ -53,7 +51,6 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, model_tensornet):
     assert list(s_ase.get_forces().shape) == [2, 3]
     assert list(s_ase.get_stress().shape) == [6]
     assert list(calc.results["hessian"].shape) == [6, 6]
-    #    np.testing.assert_allclose(s_ase.get_potential_energy(), -10.824362, atol=1e-5, rtol=1e-6)
     with pytest.raises(ValueError, match=r"Unsupported stress_unit: Pa. Must be 'GPa' or 'eV/A3'."):
         PESCalculator(potential=ff, stress_unit="Pa")
 
@@ -130,7 +127,6 @@ def test_molecular_dynamics(MoS2):
         "npt_nose_hoover",
         "npt_nose_hoover_chain",
     ]:
-        #        md = MolecularDynamics(MoS2, potential=pot, ensemble=ensemble, taut=0.1, taup=0.1, compressibility_au=10)
         md = MolecularDynamics(MoS2, potential=pot, ensemble=ensemble, compressibility_au=10)
         md.run(10)
         assert md.dyn is not None
