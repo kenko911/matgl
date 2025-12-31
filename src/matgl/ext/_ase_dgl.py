@@ -196,10 +196,10 @@ class PESCalculator(Calculator):
         elif math.isclose(
             self.conversion_factor, units.GPa / (units.eV / units.Angstrom**3), rel_tol=1e-4, abs_tol=1e-6
         ):
-            print("The stress unit is now in eV/A^3, which is the correct unit for ASE Calculator.")
+            print("Note: The stress unit is now in eV/A^3, which is the correct unit for ASE Calculator.")
         else:
             raise ValueError(
-                "Invalid stress unit configuration: stress_weight corresponds to neither "
+                "Error: Invalid stress unit configuration: stress_weight corresponds to neither "
                 "GPa nor eV/A^3. This is likely caused by setting both stress_unit and "
                 "stress_weight. Please set stress_unit to 'GPa' or 'eV/A3' and "
                 "stress_weight to 1.0."
