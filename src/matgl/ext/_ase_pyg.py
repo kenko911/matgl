@@ -5,6 +5,7 @@ from __future__ import annotations
 import collections
 import contextlib
 import io
+import logging
 import math
 import pickle
 import sys
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
     from torch_geometric.data import Data
 
     from matgl.apps._pes_pyg import Potential
+
+logger = logging.getLogger(__name__)
 
 
 class OPTIMIZERS(Enum):
@@ -173,14 +176,14 @@ class PESCalculator(Calculator):
 
         self.conversion_factor = conversion_factor * stress_weight
         if self.conversion_factor == 1.0:
-            print(
-                "Warning: The stress unit is now in GPa. Please set the stress_unit to be "
-                "'eV/A3' if you want to use PESCalculator for other ASE applications."
+            logger.warning(
+                "The stress unit is now in GPa. Please set stress_unit='eV/A3' "
+                "if you want to use PESCalculator for other ASE applications."
             )
         elif math.isclose(
             self.conversion_factor, units.GPa / (units.eV / units.Angstrom**3), rel_tol=1e-4, abs_tol=1e-6
         ):
-            print("Note: The stress unit is now in eV/A^3, which is the correct unit for ASE Calculator.")
+            logger.info("The stress unit is now in eV/A^3, which is the correct unit for an ASE Calculator.")
         else:
             raise ValueError(
                 "Error: Invalid stress unit configuration: stress_weight corresponds to neither "

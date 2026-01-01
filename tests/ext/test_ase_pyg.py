@@ -19,8 +19,12 @@ from matgl.ext._ase_pyg import Atoms2Graph, M3GNetCalculator, MolecularDynamics,
 
 def test_PESCalculator_and_M3GNetCalculator(
     MoS,
-    capsys,
+    caplog,
 ):
+    import logging
+
+    caplog.set_level(logging.INFO)
+
     adaptor = AseAtomsAdaptor()
     s_ase = adaptor.get_atoms(MoS)  # type: ignore
 
@@ -32,11 +36,23 @@ def test_PESCalculator_and_M3GNetCalculator(
     # ------------------------------------------------------------------
 
     valid_cases = [
-        {"stress_unit": "eV/A3", "stress_weight": 1.0, "expected_msg": "eV/A^3"},
-        {"stress_unit": "GPa", "stress_weight": 1.0, "expected_msg": "GPa"},
+        {
+            "stress_unit": "eV/A3",
+            "stress_weight": 1.0,
+            "expected_msg": "eV/A^3",
+            "level": logging.INFO,
+        },
+        {
+            "stress_unit": "GPa",
+            "stress_weight": 1.0,
+            "expected_msg": "GPa",
+            "level": logging.WARNING,
+        },
     ]
 
     for case in valid_cases:
+        caplog.clear()
+
         calc = PESCalculator(
             potential=ff,
             state_attr=None,
@@ -57,8 +73,8 @@ def test_PESCalculator_and_M3GNetCalculator(
             rtol=1e-6,
         )
 
-        captured = capsys.readouterr()
-        assert case["expected_msg"] in captured.out
+        # Assert log message and level
+        assert any(rec.levelno == case["level"] and case["expected_msg"] in rec.message for rec in caplog.records)
 
     # ------------------------------------------------------------------
     # Invalid configurations
