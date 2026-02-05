@@ -21,7 +21,7 @@ authors = [
 ]
 description = "MatGL is a framework for graph deep learning for materials science."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
     "materials",
     "interatomic potential",
@@ -57,7 +57,7 @@ dependencies = [
     "pydantic",
     "boto3",
     "numpy<3.0",
-    "torch-geometric"
+    "torch-geometric",
 ]
 version = "2.0.6"
 
@@ -73,6 +73,9 @@ dgl = [
     # "torchdata<=0.8.0",
     "dgl<=2.4.0; sys.platform == 'linux'",
     # "torch<=2.4.0; sys.platform == 'linux'",
+]
+ops = [
+  "nvalchemi-toolkit-ops",
 ]
 
 [tool.setuptools.packages.find]
