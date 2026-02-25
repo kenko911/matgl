@@ -52,12 +52,12 @@ dependencies = [
     "ase",
     "torch<=2.9.1",  # TODO: Remove this pin. For some reason, torch 2.9 gives different results.
     "torchdata",
-    "pymatgen",
     "lightning<=2.6.0",
     "pydantic",
     "boto3",
     "numpy<3.0",
     "torch-geometric",
+    "pymatgen-core>=2026.2.24",
 ]
 version = "2.0.6"
 
