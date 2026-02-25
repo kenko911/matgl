@@ -17,7 +17,7 @@ authors = [
     { name = "Eliott Liu", email = "elliottliu17@gmail.com" },
     { name = "Bowen Deng", email = "bowendeng@berkeley.edu" },
     { name = "Luis Barroso-Luque", email = "lbluque@berkeley.edu" },
-    { name = "Shyue Ping Ong", email = "ongsp@ucsd.edu" },
+    { name = "Shyue Ping Ong", email = "shyue@nus.edu.sg" },
 ]
 description = "MatGL is a framework for graph deep learning for materials science."
 readme = "README.md"
