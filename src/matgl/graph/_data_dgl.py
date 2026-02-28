@@ -49,7 +49,11 @@ def collate_fn_graph(batch: list, include_line_graph: bool = False, multiple_val
 
 
 def collate_fn_pes(
-    batch: list, include_stress: bool = True, include_line_graph: bool = False, include_magmom: bool = False
+    batch: list,
+    include_stress: bool = True,
+    include_line_graph: bool = False,
+    include_magmom: bool = False,
+    include_charge: bool = False,
 ) -> tuple:
     """Merge a list of dgl graphs to form a batch."""
     l_g = None
@@ -71,6 +75,12 @@ def collate_fn_pes(
         if include_magmom is True
         else torch.tensor(np.zeros(e.size(dim=0)), dtype=matgl.float_th)
     )
+    q = (
+        torch.vstack([d["charges"] for d in labels])
+        if include_magmom is True
+        else torch.tensor(np.zeros(e.size(dim=0)), dtype=matgl.float_th)
+    )
+
     state_attr = torch.stack(state_attr)  # type:ignore[assignment]
     lat = torch.stack(lattices)
     if include_line_graph:
@@ -79,6 +89,8 @@ def collate_fn_pes(
         return g, torch.squeeze(lat), l_g, state_attr, e, f, s
     if include_magmom:
         return g, torch.squeeze(lat), state_attr, e, f, s, m
+    if include_charge:
+        return g, torch.squeeze(lat), state_attr, e, f, s, q
     return g, torch.squeeze(lat), state_attr, e, f, s
 
 

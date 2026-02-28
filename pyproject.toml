@@ -17,11 +17,11 @@ authors = [
     { name = "Eliott Liu", email = "elliottliu17@gmail.com" },
     { name = "Bowen Deng", email = "bowendeng@berkeley.edu" },
     { name = "Luis Barroso-Luque", email = "lbluque@berkeley.edu" },
-    { name = "Shyue Ping Ong", email = "ongsp@ucsd.edu" },
+    { name = "Shyue Ping Ong", email = "shyue@nus.edu.sg" },
 ]
 description = "MatGL is a framework for graph deep learning for materials science."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
     "materials",
     "interatomic potential",
@@ -50,14 +50,14 @@ classifiers = [
 ]
 dependencies = [
     "ase",
-    "torch<=2.9.1",  # TODO: Remove this pin. For some reason, torch 2.9 gives different results.
+    "torch<=2.10.0",  # TODO: Remove this pin. For some reason, torch 2.9 gives different results.
     "torchdata",
-    "pymatgen",
-    "lightning<=2.6.0",
+    "lightning<=2.6.1",
     "pydantic",
     "boto3",
     "numpy<3.0",
-    "torch-geometric"
+    "torch-geometric",
+    "pymatgen-core>=2026.2.24",
 ]
 version = "2.0.6"
 
@@ -73,6 +73,9 @@ dgl = [
     # "torchdata<=0.8.0",
     "dgl<=2.4.0; sys.platform == 'linux'",
     # "torch<=2.4.0; sys.platform == 'linux'",
+]
+ops = [
+  "nvalchemi-toolkit-ops",
 ]
 
 [tool.setuptools.packages.find]
@@ -158,6 +161,8 @@ lint.isort.required-imports = ["from __future__ import annotations"]
 "tests/**/*" = ["D", "PERF"]
 "docs/**/*" = ["D"]
 "examples/**/*" = ["D"]
+"src/matgl/kernels/*" = ["D100", "D103", "E741", "I002"]
+"src/matgl/ops/*" = ["D100", "D103"]
 
 [tool.pytest.ini_options]
 addopts = "--durations=30 --quiet -rXs --color=yes -p no:warnings"
@@ -170,6 +175,10 @@ exclude = ['examples', 'tests']
 [[tool.mypy.overrides]]
 module = ["requests.*", "tabulate.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["matgl.kernels.*"]
+ignore_errors = true
 
 [tool.coverage.run]
 relative_files = true

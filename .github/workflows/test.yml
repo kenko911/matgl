@@ -7,11 +7,14 @@ on:
       - "src/**"
       - "tests/**"
       - ".github/workflows/**"
+      - "pyproject.toml"
   pull_request:
     branches: [main]
     paths:
       - "src/**"
       - "tests/**"
+      - ".github/workflows/**"
+      - "pyproject.toml"
   release:
     types: [published]
   workflow_dispatch:
@@ -47,22 +50,22 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.config.python }}
       - name: Virtual env
-        run: uv venv --python ${{ matrix.config.python }}
-      - name: Install latest DGL for Linux
-        if: matrix.config.os == 'ubuntu-latest'
-        run: uv pip install dgl==2.4.0 -f https://data.dgl.ai/wheels/torch-2.4/repo.html
+        run: uv venv --python ${{ matrix.config.python }} --clear
       - name: Install dependencies
         run: |
-          uv pip install "numpy<2"
-          uv pip install -e '.[dgl]'
-          uv pip install "torch<=2.4.0"
-          uv pip install "torchdata<=0.8.0"
+          uv pip install -e ".[dgl]" \
+              "numpy<2" \
+              "torch==2.4.0" \
+              "torchdata==0.8.0" \
+              "dgl==2.4.0" \
+              -f https://data.dgl.ai/wheels/torch-2.4/repo.html
           uv pip install pytest pytest-cov
       - name: pytest
         run: |
-          uv run python -c "import dgl; print(dgl.__version__)"
-          uv run python -c "import torch; print(torch.__version__)"
-          uv run pytest --cov=matgl --cov-report=xml --cov-report=term tests --color=yes
+          uv run --no-sync python -c "import dgl; print(dgl.__version__)"
+          uv run --no-sync python -c "import torch; print(torch.__version__)"
+          uv run --no-sync python -c "import torchdata; print(torchdata.__version__)"
+          uv run --no-sync pytest --cov=matgl --cov-report=xml --cov-report=term tests --color=yes
           mv .coverage coverage.dgl
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
@@ -78,7 +81,7 @@ jobs:
           - os: ubuntu-latest
             python: "3.13"
           - os: macos-latest
-            python: "3.10"
+            python: "3.11"
 
     runs-on: ${{ matrix.config.os }}
     env:
@@ -95,11 +98,11 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.config.python }}
       - name: Virtual env
-        run: uv venv --python ${{ matrix.config.python }}
+        run: uv venv --python ${{ matrix.config.python }} --clear
       - name: Install dependencies
         run: |
           uv sync --upgrade
-          uv pip install -e .
+          uv pip install -e ".[ops]"
           uv pip install pytest pytest-cov
       - name: pytest
         run: |
