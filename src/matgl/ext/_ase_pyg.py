@@ -114,7 +114,7 @@ class Atoms2Graph(GraphConverter):
             # long.
             pbc = np.array([1, 1, 1], dtype=np.int64)
             element_types = self.element_types
-            lattice_matrix = np.array(atoms.get_cell()) if atoms.pbc.all() else np.expand_dims(np.identity(3), axis=0)
+            lattice_matrix = np.array(atoms.get_cell()) if atoms.pbc.all() else np.expand_dims(np.identity(3), axis=0)  # type: ignore[assignment]
             cart_coords = atoms.get_positions()
             if atoms.pbc.all():
                 src_id, dst_id, images, bond_dist = find_points_in_spheres(
@@ -147,7 +147,7 @@ class Atoms2Graph(GraphConverter):
             src_id,
             dst_id,
             images if atoms.pbc.all() else np.zeros((len(src_id), 3)),
-            [lattice_matrix] if atoms.pbc.all() and not self.use_warp else lattice_matrix,
+            [lattice_matrix] if atoms.pbc.all() and not self.use_warp else lattice_matrix,  # type: ignore[arg-type]
             element_types,
             frac_coords if atoms.pbc.all() else cart_coords,
             is_atoms=True,

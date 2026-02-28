@@ -77,7 +77,7 @@ def collate_fn_pes(
     )
     q = (
         torch.vstack([d["charges"] for d in labels])
-        if include_magmom is True
+        if include_charge is True
         else torch.tensor(np.zeros(e.size(dim=0)), dtype=matgl.float_th)
     )
 
