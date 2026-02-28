@@ -72,7 +72,7 @@ class Atoms2Graph(GraphConverter):
             element_types: List of elements present in dataset for graph conversion. This ensures all graphs are
                 constructed with the same dimensionality of features.
             cutoff: Cutoff radius for graph representation
-            use_ops: Whether NVIDIA Warp nighbor list is used.
+            use_warp: Whether NVIDIA Warp neighbor list is used.
         """
         self.element_types = tuple(element_types)
         self.cutoff = cutoff
@@ -132,6 +132,7 @@ class Atoms2Graph(GraphConverter):
                     images[exclude_self],
                     bond_dist[exclude_self],
                 )
+                frac_coords = atoms.get_scaled_positions(False)
             else:
                 dist = np.linalg.norm(cart_coords[:, None, :] - cart_coords[None, :, :], axis=-1)
                 adj = sp.csr_matrix(dist <= self.cutoff) - sp.eye(len(atoms.get_positions()), dtype=np.bool_)
@@ -140,7 +141,7 @@ class Atoms2Graph(GraphConverter):
                 dst_id = adj.col
 
         element_types = self.element_types
-        
+
         g, lat, state_attr = super().get_graph_from_processed_structure(
             atoms,
             src_id,
@@ -148,7 +149,7 @@ class Atoms2Graph(GraphConverter):
             images if atoms.pbc.all() else np.zeros((len(src_id), 3)),
             [lattice_matrix] if atoms.pbc.all() and not self.use_warp else lattice_matrix,
             element_types,
-            atoms.get_scaled_positions(False) if atoms.pbc.all() else cart_coords,
+            frac_coords if atoms.pbc.all() else cart_coords,
             is_atoms=True,
         )
 
@@ -167,6 +168,7 @@ class PESCalculator(Calculator):
         stress_unit: Literal["eV/A3", "GPa"] = "GPa",
         stress_weight: float = 1.0,
         use_voigt: bool = False,
+        use_warp: bool = False,
         **kwargs,
     ):
         """
@@ -179,6 +181,7 @@ class PESCalculator(Calculator):
             stress_unit (str): stress unit either in "GPa" or "eV/A^3". Default: "GPa"
             stress_weight (float): conversion factor from GPa to eV/A^3, if it is set to 1.0, the unit is in GPa
             use_voigt (bool): whether the voigt notation is used for stress output
+            use_warp (bool): Whether NVIDIA Warp neighbor list is used.
             **kwargs: Kwargs pass through to super().__init__().
         """
         super().__init__(**kwargs)
@@ -216,7 +219,7 @@ class PESCalculator(Calculator):
         self.element_types: tuple[str, ...] = potential.model.element_types  # type: ignore[assignment,union-attr]
         self.cutoff: float = potential.model.cutoff  # type: ignore[assignment,union-attr]
         self.use_voigt = use_voigt
-        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff)
+        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff, use_warp)
 
     def calculate(  # type:ignore[override]
         self,

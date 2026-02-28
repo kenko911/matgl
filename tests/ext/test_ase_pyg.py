@@ -17,10 +17,8 @@ import matgl
 from matgl.ext._ase_pyg import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
 
 
-def test_PESCalculator_and_M3GNetCalculator(
-    MoS,
-    caplog,
-):
+@pytest.mark.parametrize("use_warp", [True, False])
+def test_PESCalculator_and_M3GNetCalculator(MoS, caplog, use_warp):
     import logging
 
     caplog.set_level(logging.INFO)
@@ -58,6 +56,7 @@ def test_PESCalculator_and_M3GNetCalculator(
             state_attr=None,
             stress_unit=case["stress_unit"],
             stress_weight=case["stress_weight"],
+            use_warp=use_warp,
         )
         s_ase.set_calculator(calc)
 
@@ -99,7 +98,7 @@ def test_PESCalculator_and_M3GNetCalculator(
     # Backward compatibility: M3GNetCalculator
     # ------------------------------------------------------------------
 
-    calc = M3GNetCalculator(potential=ff)
+    calc = M3GNetCalculator(potential=ff, use_warp=use_warp)
     s_ase.set_calculator(calc)
 
     assert isinstance(s_ase.get_potential_energy(), float)
@@ -108,11 +107,12 @@ def test_PESCalculator_and_M3GNetCalculator(
     assert list(calc.results["hessian"].shape) == [6, 6]
 
 
-def test_PESCalculator_mol(AcAla3NHMe):
+@pytest.mark.parametrize("use_warp", [True, False])
+def test_PESCalculator_mol(AcAla3NHMe, use_warp):
     adaptor = AseAtomsAdaptor()
     mol = adaptor.get_atoms(AcAla3NHMe)
     ff = matgl.load_model("pretrained_models/TensorNet-MatPES-PBE-v2025.1-PES/")
-    calc = PESCalculator(potential=ff)
+    calc = PESCalculator(potential=ff, use_warp=use_warp)
     mol.set_calculator(calc)
     assert isinstance(mol.get_potential_energy(), float)
     assert list(mol.get_forces().shape) == [42, 3]
@@ -132,6 +132,7 @@ def test_Relaxer(MoS):
     assert os.path.exists("MoS_relax.traj")
     os.remove("MoS_relax.traj")
 
+
 @pytest.mark.parametrize("use_warp", [True, False])
 def test_get_graph_from_atoms(LiFePO4, use_warp):
     adaptor = AseAtomsAdaptor()
@@ -148,6 +149,7 @@ def test_get_graph_from_atoms(LiFePO4, use_warp):
     assert np.allclose(graph.num_edges, 704)
     # check the state features
     assert np.allclose(state, [0.0, 0.0])
+
 
 @pytest.mark.parametrize("use_warp", [True, False])
 def test_get_graph_from_atoms_mol(use_warp):
