@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Literal
 import ase.optimize as opt
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 import torch
 from ase import Atoms, units
 from ase.calculators.calculator import Calculator, all_changes
@@ -32,6 +33,7 @@ from ase.md.verlet import VelocityVerlet
 from ase.stress import full_3x3_to_voigt_6_stress
 from pymatgen.core.structure import Molecule, Structure
 from pymatgen.io.ase import AseAtomsAdaptor
+from pymatgen.optimization.neighbors import find_points_in_spheres
 
 from matgl.ext._alchmtk import neighbor_list_from_ase
 from matgl.graph._converters_pyg import GraphConverter
@@ -63,21 +65,19 @@ class OPTIMIZERS(Enum):
 class Atoms2Graph(GraphConverter):
     """Construct a DGL graph from ASE Atoms."""
 
-    def __init__(
-        self,
-        element_types: tuple[str, ...],
-        cutoff: float = 5.0,
-    ):
+    def __init__(self, element_types: tuple[str, ...], cutoff: float = 5.0, use_warp: bool = False):
         """Init Atoms2Graph from element types and cutoff radius.
 
         Args:
             element_types: List of elements present in dataset for graph conversion. This ensures all graphs are
                 constructed with the same dimensionality of features.
             cutoff: Cutoff radius for graph representation
+            use_warp: Whether NVIDIA Warp neighbor list is used.
         """
         self.element_types = tuple(element_types)
         self.cutoff = cutoff
         self.max_neighbors = 0.3
+        self.use_warp = use_warp
 
     def get_graph(self, atoms: Atoms) -> tuple[Data, torch.Tensor, list | np.ndarray]:
         """Get a DGL graph from an input Atoms.
@@ -89,32 +89,67 @@ class Atoms2Graph(GraphConverter):
             g: DGL graph
             state_attr: state features
         """
-        src_id, dst_id, _, images, positions, max_neighbors = neighbor_list_from_ase(
-            atoms=atoms,
-            cutoff=self.cutoff,
-            compute_distances=False,
-            density_guess=self.max_neighbors,
-        )
-        self.max_neighbors = max_neighbors
-        if atoms.get_pbc().any():
-            lattice_matrix = torch.as_tensor(atoms.cell.array, dtype=torch.float32, device=src_id.device)
-            # Convert Cartesian positions to fractional coordinates
-            # The model expects fractional coords and computes: g.pos = g.frac_coords @ lattice
-            frac_coords = positions @ torch.linalg.inv(lattice_matrix)
+        # use NVIDIA Warp neighbor list
+        if self.use_warp:
+            src_id, dst_id, _, images, positions, max_neighbors = neighbor_list_from_ase(
+                atoms=atoms,
+                cutoff=self.cutoff,
+                compute_distances=False,
+                density_guess=self.max_neighbors,
+            )
+            self.max_neighbors = max_neighbors
+            if atoms.get_pbc().any():
+                lattice_matrix = torch.as_tensor(atoms.cell.array, dtype=torch.float32, device=src_id.device)
+                # Convert Cartesian positions to fractional coordinates
+                # The model expects fractional coords and computes: g.pos = g.frac_coords @ lattice
+                frac_coords = positions @ torch.linalg.inv(lattice_matrix)
+            else:
+                lattice_matrix = torch.eye(3, dtype=torch.float32, device=src_id.device).unsqueeze(0)
+                # For molecules (non-periodic), use Cartesian positions directly
+                cart_coords = positions
+        # use pymatgen neighbor list
         else:
-            lattice_matrix = torch.eye(3, dtype=torch.float32, device=src_id.device).unsqueeze(0)
-            # For molecules (non-periodic), use Cartesian positions directly
-            frac_coords = positions
+            numerical_tol = 1.0e-8
+            # Note this needs to be specified as np.int64 or the code will fail on Windows systems as it will default to
+            # long.
+            pbc = np.array([1, 1, 1], dtype=np.int64)
+            element_types = self.element_types
+            lattice_matrix = np.array(atoms.get_cell()) if atoms.pbc.all() else np.expand_dims(np.identity(3), axis=0)  # type: ignore[assignment]
+            cart_coords = atoms.get_positions()
+            if atoms.pbc.all():
+                src_id, dst_id, images, bond_dist = find_points_in_spheres(
+                    cart_coords,
+                    cart_coords,
+                    r=self.cutoff,
+                    pbc=pbc,
+                    lattice=lattice_matrix,
+                    tol=numerical_tol,
+                )
+                exclude_self = (src_id != dst_id) | (bond_dist > numerical_tol)
+                src_id, dst_id, images, bond_dist = (
+                    src_id[exclude_self],
+                    dst_id[exclude_self],
+                    images[exclude_self],
+                    bond_dist[exclude_self],
+                )
+                frac_coords = atoms.get_scaled_positions(False)
+            else:
+                dist = np.linalg.norm(cart_coords[:, None, :] - cart_coords[None, :, :], axis=-1)
+                adj = sp.csr_matrix(dist <= self.cutoff) - sp.eye(len(atoms.get_positions()), dtype=np.bool_)
+                adj = adj.tocoo()
+                src_id = adj.row
+                dst_id = adj.col
+
         element_types = self.element_types
 
         g, lat, state_attr = super().get_graph_from_processed_structure(
             atoms,
             src_id,
             dst_id,
-            images,
-            lattice_matrix,
+            images if atoms.pbc.all() else np.zeros((len(src_id), 3)),
+            [lattice_matrix] if atoms.pbc.all() and not self.use_warp else lattice_matrix,  # type: ignore[arg-type]
             element_types,
-            frac_coords,
+            frac_coords if atoms.pbc.all() else cart_coords,
             is_atoms=True,
         )
 
@@ -133,6 +168,7 @@ class PESCalculator(Calculator):
         stress_unit: Literal["eV/A3", "GPa"] = "GPa",
         stress_weight: float = 1.0,
         use_voigt: bool = False,
+        use_warp: bool = False,
         **kwargs,
     ):
         """
@@ -145,6 +181,7 @@ class PESCalculator(Calculator):
             stress_unit (str): stress unit either in "GPa" or "eV/A^3". Default: "GPa"
             stress_weight (float): conversion factor from GPa to eV/A^3, if it is set to 1.0, the unit is in GPa
             use_voigt (bool): whether the voigt notation is used for stress output
+            use_warp (bool): Whether NVIDIA Warp neighbor list is used.
             **kwargs: Kwargs pass through to super().__init__().
         """
         super().__init__(**kwargs)
@@ -182,7 +219,7 @@ class PESCalculator(Calculator):
         self.element_types: tuple[str, ...] = potential.model.element_types  # type: ignore[assignment,union-attr]
         self.cutoff: float = potential.model.cutoff  # type: ignore[assignment,union-attr]
         self.use_voigt = use_voigt
-        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff)
+        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff, use_warp)
 
     def calculate(  # type:ignore[override]
         self,
