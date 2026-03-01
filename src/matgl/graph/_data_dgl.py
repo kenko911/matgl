@@ -146,6 +146,7 @@ class MGLDataset(DGLDataset):
         filename_state_attr: str = "state_attr.pt",
         filename_labels: str = "labels.json",
         include_line_graph: bool = False,
+        include_ref_charge: bool = False,
         converter: GraphConverter | None = None,
         threebody_cutoff: float | None = None,
         directed_line_graph: bool = False,
@@ -166,6 +167,7 @@ class MGLDataset(DGLDataset):
             filename_state_attr: file name for storing state attributes.
             filename_labels: file name for storing labels.
             include_line_graph: whether to include line graphs.
+            include_ref_charge: whether to include reference charges.
             converter: dgl graph converter.
             threebody_cutoff: cutoff for three body.
             directed_line_graph (bool): Whether to create a directed line graph (CHGNet), or an
@@ -191,6 +193,7 @@ class MGLDataset(DGLDataset):
         self.filename_state_attr = filename_state_attr
         self.filename_labels = filename_labels
         self.include_line_graph = include_line_graph
+        self.include_ref_charge = include_ref_charge
         self.converter = converter
         self.structures = structures or []
         self.labels = labels or {}
@@ -241,6 +244,8 @@ class MGLDataset(DGLDataset):
                 for name in ["bond_vec", "bond_dist", "pbc_offset"]:
                     line_graph.ndata.pop(name)
                 line_graphs.append(line_graph)
+            if self.include_ref_charge:
+                graph.ndata["q_ref"] = torch.tensor(self.labels["charges"][idx], dtype=matgl.float_th)
             graph.ndata.pop("pos")
             graph.edata.pop("pbc_offshift")
 
