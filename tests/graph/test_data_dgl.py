@@ -172,6 +172,63 @@ class TestDataset:
         assert np.allclose(lat2.detach().numpy(), structures[1].lattice.matrix)
         shutil.rmtree(f"{dataset.save_path}")
 
+    def test_mgl_dataset_include_charge(self, LiFePO4, BaNiO3):
+        structures = [LiFePO4, BaNiO3]
+        energies = [-1.0, 2.0]
+        forces = [np.zeros((28, 3)).tolist(), np.zeros((10, 3)).tolist()]
+        stresses = [np.zeros((3, 3)).tolist(), np.zeros((3, 3)).tolist()]
+        charges = [np.zeros(28).tolist(), np.zeros(10).tolist()]
+        element_types = get_element_list(structures)
+        cry_graph = Structure2Graph(element_types=element_types, cutoff=4.0)
+        dataset = MGLDataset(
+            structures=structures,
+            converter=cry_graph,
+            threebody_cutoff=4.0,
+            include_line_graph=True,
+            include_ref_charge=True,
+            labels={"energies": energies, "forces": forces, "stresses": stresses, "charges": charges},
+            clear_processed=True,
+            directory_name="MGLDataset_pes",
+        )
+        g1, lat1, _, _, pes1 = dataset[0]
+        g2, lat2, _, _, pes2 = dataset[1]
+        assert pes1["energies"] == energies[0]
+        assert g1.num_edges() == cry_graph.get_graph(LiFePO4)[0].num_edges()
+        assert g1.num_nodes() == cry_graph.get_graph(LiFePO4)[0].num_nodes()
+        assert g2.num_edges() == cry_graph.get_graph(BaNiO3)[0].num_edges()
+        assert g2.num_nodes() == cry_graph.get_graph(BaNiO3)[0].num_nodes()
+        assert np.shape(pes1["forces"])[0] == 28
+        assert np.shape(pes2["forces"])[0] == 10
+        assert len(pes1["charges"]) == 28
+        assert len(pes2["charges"]) == 10
+        assert np.allclose(lat1.detach().numpy(), structures[0].lattice.matrix)
+        assert np.allclose(lat2.detach().numpy(), structures[1].lattice.matrix)
+        # Check that structures are indeed cleared.
+        assert len(dataset.structures) == 0
+
+    def test_load_mgl_dataset_charge(self, LiFePO4, BaNiO3):
+        structures = [LiFePO4, BaNiO3]
+        element_types = get_element_list(structures)
+        cry_graph = Structure2Graph(element_types=element_types, cutoff=4.0)
+        dataset = MGLDataset(
+            directory_name="MGLDataset_pes",
+            include_line_graph=True,
+            include_ref_charge=True,
+        )
+        dataset.load()
+        g1, lat1, _, _, pes1 = dataset[0]
+        g2, lat2, _, _, pes2 = dataset[1]
+        assert pes1["energies"] == -1.0
+        assert g1.num_edges() == cry_graph.get_graph(LiFePO4)[0].num_edges()
+        assert g1.num_nodes() == cry_graph.get_graph(LiFePO4)[0].num_nodes()
+        assert g2.num_edges() == cry_graph.get_graph(BaNiO3)[0].num_edges()
+        assert g2.num_nodes() == cry_graph.get_graph(BaNiO3)[0].num_nodes()
+        assert np.shape(pes1["forces"])[0] == 28
+        assert np.shape(pes2["forces"])[0] == 10
+        assert np.allclose(lat1.detach().numpy(), structures[0].lattice.matrix)
+        assert np.allclose(lat2.detach().numpy(), structures[1].lattice.matrix)
+        shutil.rmtree(f"{dataset.save_path}")
+
     def test_mgl_property_dataset(self, LiFePO4, BaNiO3):
         structures = [LiFePO4, BaNiO3]
         labels = [1.0, -2.0]
