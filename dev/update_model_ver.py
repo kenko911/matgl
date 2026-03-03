@@ -20,4 +20,4 @@ with open("model.json") as f:
 d["kwargs"]["model"]["@model_version"] = version
 
 with open("model.json", "w") as f:
-    json.dump(d, f, default=lambda o: str(o), indent=4)
+    json.dump(d, f, default=str, indent=4)
