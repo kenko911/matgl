@@ -14,7 +14,7 @@ from ase.build import molecule
 from pymatgen.io.ase import AseAtomsAdaptor
 
 import matgl
-from matgl.ext._ase_pyg import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
+from matgl.ext.ase import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
 
 
 @pytest.mark.parametrize("use_warp", [True, False])

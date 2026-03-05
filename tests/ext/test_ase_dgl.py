@@ -13,7 +13,7 @@ from matgl import load_model
 
 if matgl.config.BACKEND != "DGL":
     pytest.skip("Skipping DGL tests", allow_module_level=True)
-from matgl.ext._ase_dgl import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
+from matgl.ext.ase import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
 
 
 @pytest.mark.integration
