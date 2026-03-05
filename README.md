@@ -18,7 +18,7 @@ natural representation for a collection of atoms. Graph deep learning models hav
 exceptional performance as surrogate models for the prediction of materials properties. The goal is for MatGL to serve
 as an extensible platform to develop and share materials graph deep learning models.
 
-This first version of MatGL is a collaboration between the [Materials Virtual Lab][mavrl] and Intel Labs.
+This first version of MatGL is a collaboration between the [Materialyze.AI][materialyze] and Intel Labs.
 
 MatGL is part of the MatML ecosystem, which includes the [MatGL] (Materials Graph Library) and [maml] (MAterials
 Machine Learning) packages, the [MatPES] (Materials Potential Energy Surface) dataset, and the [MatCalc] (Materials
@@ -201,7 +201,7 @@ following commands:
 import torch
 
 # To obtain a listing of models
-torch.hub.list("materialyzeai/matgl", force_reload=True)
+torch.hub.list("materialsvirtuallab/matgl", force_reload=True)
 
 # To load a model
 model = torch.hub.load("materialyzeai/matgl", 'm3gnet_universal_potential')
@@ -329,7 +329,7 @@ ACI-1548562.
 [m3gnetrepo]: https://github.com/materialyzeai/m3gnet "M3GNet repo"
 [megnetrepo]: https://github.com/materialyzeai/megnet "MEGNet repo"
 [dgl]: https://www.dgl.ai "DGL website"
-[mavrl]: http://materialyzeai.org "MAVRL website"
+[materialyze]: http://materialyze.ai "Materialyze.AI website"
 [changelog]: https://matgl.ai/changes "Changelog"
 [graphnetwork]: https://arxiv.org/abs/1806.01261 "Deepmind's paper"
 [megnet]: https://pubs.acs.org/doi/10.1021/acs.chemmater.9b01294 "MEGNet paper"
@@ -340,7 +340,7 @@ ACI-1548562.
 [doc]: https://matgl.ai "MatGL Documentation"
 [google colab]: https://colab.research.google.com/ "Google Colab"
 [jupyternb]: https://github.com/materialyzeai/matgl/tree/main/examples
-[ongemail]: mailto:ongsp@ucsd.edu "Email"
+[ongemail]: mailto:shyue@nus.edu.sg "Email"
 [mqm]: https://materialsqm.com "MaterialsQM"
 [tutorials]: https://matgl.ai/tutorials "Tutorials"
 [matgl]: https://www.nature.com/articles/s41524-025-01742-y#citeas "MatGL"
@@ -353,4 +353,4 @@ ACI-1548562.
 [MatGL]: https://matgl.ai
 [MatPES]: https://matpes.ai
 [MatCalc]: https://matcalc.ai
-[Materials Virtual Lab Docker Repository]: https://hub.docker.com/orgs/materialyzeai/repositories
+[Materials Virtual Lab Docker Repository]: https://hub.docker.com/orgs/materialsvirtuallab/repositories
