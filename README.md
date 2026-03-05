@@ -1,11 +1,11 @@
-[![GitHub license](https://img.shields.io/github/license/materialsvirtuallab/matgl)](https://github.com/materialsvirtuallab/matgl/blob/main/LICENSE)
-[![Lint](https://github.com/materialsvirtuallab/matgl/workflows/Lint/badge.svg)](https://github.com/materialsvirtuallab/matgl/workflows/Lint/badge.svg)
-[![Test](https://github.com/materialsvirtuallab/matgl/actions/workflows/test.yml/badge.svg)](https://github.com/materialsvirtuallab/matgl/actions/workflows/test.yml)
+[![GitHub license](https://img.shields.io/github/license/materialyzeai/matgl)](https://github.com/materialyzeai/matgl/blob/main/LICENSE)
+[![Lint](https://github.com/materialyzeai/matgl/workflows/Lint/badge.svg)](https://github.com/materialyzeai/matgl/workflows/Lint/badge.svg)
+[![Test](https://github.com/materialyzeai/matgl/actions/workflows/test.yml/badge.svg)](https://github.com/materialyzeai/matgl/actions/workflows/test.yml)
 [![Downloads](https://static.pepy.tech/badge/matgl)](https://pepy.tech/project/matgl)
-[![codecov](https://codecov.io/gh/materialsvirtuallab/matgl/branch/main/graph/badge.svg?token=3V3O79GODQ)](https://codecov.io/gh/materialsvirtuallab/matgl)
+[![codecov](https://codecov.io/gh/materialyzeai/matgl/branch/main/graph/badge.svg?token=3V3O79GODQ)](https://codecov.io/gh/materialyzeai/matgl)
 [![PyPI](https://img.shields.io/pypi/v/matgl?logo=pypi&logoColor=white)](https://pypi.org/project/matgl?logo=pypi&logoColor=white)
 
-# Materials Graph Library <img src="https://github.com/materialsvirtuallab/matgl/blob/main/assets/MatGL.png?raw=true" alt="matgl" width="30%" style="float: right">
+# Materials Graph Library <img src="https://github.com/materialyzeai/matgl/blob/main/assets/MatGL.png?raw=true" alt="matgl" width="30%" style="float: right">
 
 ## Official Documentation
 
@@ -65,7 +65,7 @@ matgl.set_backend("DGL")
 ## Current Architectures
 
 <div style="float: left; padding: 10px; width: 200px">
-<img src="https://github.com/materialsvirtuallab/matgl/blob/main/assets/MxGNet.png?raw=true" alt="m3gnet_schematic">
+<img src="https://github.com/materialyzeai/matgl/blob/main/assets/MxGNet.png?raw=true" alt="m3gnet_schematic">
 <p>Figure: Schematic of M3GNet/MEGNet</p>
 </div>
 
@@ -201,10 +201,10 @@ following commands:
 import torch
 
 # To obtain a listing of models
-torch.hub.list("materialsvirtuallab/matgl", force_reload=True)
+torch.hub.list("materialyzeai/matgl", force_reload=True)
 
 # To load a model
-model = torch.hub.load("materialsvirtuallab/matgl", 'm3gnet_universal_potential')
+model = torch.hub.load("materialyzeai/matgl", 'm3gnet_universal_potential')
 ```
 ## Model Training
 
@@ -326,10 +326,10 @@ DE-AC02-05-CH11231: Materials Project program KC23MP. This work used the Expanse
 Science and Engineering Discovery Environment (XSEDE), which is supported by National Science Foundation grant number
 ACI-1548562.
 
-[m3gnetrepo]: https://github.com/materialsvirtuallab/m3gnet "M3GNet repo"
-[megnetrepo]: https://github.com/materialsvirtuallab/megnet "MEGNet repo"
+[m3gnetrepo]: https://github.com/materialyzeai/m3gnet "M3GNet repo"
+[megnetrepo]: https://github.com/materialyzeai/megnet "MEGNet repo"
 [dgl]: https://www.dgl.ai "DGL website"
-[mavrl]: http://materialsvirtuallab.org "MAVRL website"
+[mavrl]: http://materialyzeai.org "MAVRL website"
 [changelog]: https://matgl.ai/changes "Changelog"
 [graphnetwork]: https://arxiv.org/abs/1806.01261 "Deepmind's paper"
 [megnet]: https://pubs.acs.org/doi/10.1021/acs.chemmater.9b01294 "MEGNet paper"
@@ -339,7 +339,7 @@ ACI-1548562.
 [apidocs]: https://matgl.ai/matgl.html "MatGL API docs"
 [doc]: https://matgl.ai "MatGL Documentation"
 [google colab]: https://colab.research.google.com/ "Google Colab"
-[jupyternb]: https://github.com/materialsvirtuallab/matgl/tree/main/examples
+[jupyternb]: https://github.com/materialyzeai/matgl/tree/main/examples
 [ongemail]: mailto:ongsp@ucsd.edu "Email"
 [mqm]: https://materialsqm.com "MaterialsQM"
 [tutorials]: https://matgl.ai/tutorials "Tutorials"
@@ -349,8 +349,8 @@ ACI-1548562.
 [so3net]: https://pubs.aip.org/aip/jcp/article-abstract/158/14/144801/2877924/SchNetPack-2-0-A-neural-network-toolbox-for "SO3Net"
 [chgnet]: https://www.nature.com/articles/s42256-023-00716-3 "CHGNet"
 [chgnetrepo]: https://github.com/CederGroupHub/chgnet "CHGNet repo"
-[maml]: https://materialsvirtuallab.github.io/maml/
+[maml]: https://materialyzeai.github.io/maml/
 [MatGL]: https://matgl.ai
 [MatPES]: https://matpes.ai
 [MatCalc]: https://matcalc.ai
-[Materials Virtual Lab Docker Repository]: https://hub.docker.com/orgs/materialsvirtuallab/repositories
+[Materials Virtual Lab Docker Repository]: https://hub.docker.com/orgs/materialyzeai/repositories
