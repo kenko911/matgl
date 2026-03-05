@@ -13,7 +13,6 @@ if matgl.config.BACKEND != "PYG":
 from ase.build import molecule
 from pymatgen.io.ase import AseAtomsAdaptor
 
-import matgl
 from matgl.ext.ase import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
 
 
