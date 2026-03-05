@@ -6,6 +6,9 @@ nav_order: 3
 
 # Change Log
 
+## 2.0.8
+- Bug fix for missing Atoms2Graph export.
+
 ## 2.0.7
 - Refactored PyG TensorNet embedding and interaction blocks to pure PyTorch for improved compatibility. (@kenko911)
 - Improved handling of stress units in `PESCalculator`. (@kenko911)
