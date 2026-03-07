@@ -6,6 +6,20 @@ nav_order: 3
 
 # Change Log
 
+## 2.0.9
+- Bug fix for missing Atoms2Graph export.
+
+## 2.0.7
+- Refactored PyG TensorNet embedding and interaction blocks to pure PyTorch for improved compatibility. (@kenko911)
+- Improved handling of stress units in `PESCalculator`. (@kenko911)
+- Enabled returning intermediate crystal features from CHGNet and TensorNet models. (@bowen-bd)
+- Added GPU-accelerated neighbor list construction and improved CUDA neighbor list performance and retry logic.
+  (@zubatyuk)
+- Integrated NVIDIA TensorNet Warp CUDA kernels into the main branch. (@atulcthakur, @zubatyuk)
+- Improved QET training support via updates to `Atoms2Graph`, `collate_fn_pes`, and `MGLDataset` (including
+  `include_ref_charge`). (@kenko911)
+- Documentation updates for QET, including references and DOI links. (@kenko911)
+
 ## 2.0.6
 - Bug fix for CHGnet loading.
 
