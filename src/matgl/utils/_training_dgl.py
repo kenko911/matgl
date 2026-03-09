@@ -427,8 +427,8 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         elif self.model.calc_charge:
             g, lat, state_attr, energies, forces, stresses, charges = batch
             e, f, s, _, q = self(g=g, lat=lat, state_attr=state_attr)
-            preds = (e, f, s, q)
-            labels = (energies, forces, stresses, charges)
+            preds = (e, f, s, q.squeeze())
+            labels = (energies, forces, stresses, charges.squeeze())
         else:
             if self.model.calc_magmom:
                 g, lat, state_attr, energies, forces, stresses, magmoms = batch
