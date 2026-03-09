@@ -225,6 +225,8 @@ class TestDataset:
         assert g2.num_nodes() == cry_graph.get_graph(BaNiO3)[0].num_nodes()
         assert np.shape(pes1["forces"])[0] == 28
         assert np.shape(pes2["forces"])[0] == 10
+        assert len(pes1["charges"]) == 28
+        assert len(pes2["charges"]) == 10
         assert np.allclose(lat1.detach().numpy(), structures[0].lattice.matrix)
         assert np.allclose(lat2.detach().numpy(), structures[1].lattice.matrix)
         shutil.rmtree(f"{dataset.save_path}")
