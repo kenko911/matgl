@@ -333,6 +333,8 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         self.force_weight = force_weight
         self.stress_weight = stress_weight
         self.magmom_weight = magmom_weight
+        self.charge_weight = charge_weight
+
         self.lr = lr
         self.decay_steps = decay_steps
         self.decay_alpha = decay_alpha
