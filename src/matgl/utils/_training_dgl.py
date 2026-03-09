@@ -273,6 +273,7 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         force_weight: float = 1.0,
         stress_weight: float = 0.0,
         magmom_weight: float = 0.0,
+        charge_weight: float = 0.0,
         data_mean: float = 0.0,
         data_std: float = 1.0,
         loss: str = "mse_loss",
@@ -298,6 +299,7 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
             force_weight: relative importance of force
             stress_weight: relative importance of stress
             magmom_weight: relative importance of additional magmom predictions.
+            charge_weight: relative importance of additional charge predictions.
             data_mean: average of training data
             data_std: standard deviation of training data
             loss: loss function used for training
@@ -318,6 +320,7 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         assert force_weight >= 0, f"force_weight has to be >=0. Got {force_weight}!"
         assert stress_weight >= 0, f"stress_weight has to be >=0. Got {stress_weight}!"
         assert magmom_weight >= 0, f"magmom_weight has to be >=0. Got {magmom_weight}!"
+        assert charge_weight >= 0, f"charge_weight has to be >=0. Got {charge_weight}!"
 
         super().__init__(**kwargs)
 
@@ -340,6 +343,7 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
             element_refs=element_refs,
             calc_stresses=stress_weight != 0,
             calc_magmom=magmom_weight != 0,
+            calc_charge=charge_weight != 0,
             data_std=torch.as_tensor(self.data_std),  # type: ignore[arg-type]
             data_mean=torch.as_tensor(self.data_mean),  # type: ignore[arg-type]
         )
@@ -389,12 +393,14 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
                 return e, f, s, h, m
             e, f, s, h = self.model(g=g, lat=lat, l_g=l_g, state_attr=state_attr)
             return e, f, s, h
-        else:  # noqa: RET505
-            if self.model.calc_magmom:
-                e, f, s, h, m = self.model(g=g, lat=lat, state_attr=state_attr)
-                return e, f, s, h, m
-            e, f, s, h = self.model(g=g, lat=lat, state_attr=state_attr)
-            return e, f, s, h
+        if self.model.calc_charge:
+            e, f, s, h, q = self.model(g=g, lat=lat, l_g=l_g, state_attr=state_attr)
+            return e, f, s, h, q
+        if self.model.calc_magmom:
+            e, f, s, h, m = self.model(g=g, lat=lat, state_attr=state_attr)
+            return e, f, s, h, m
+        e, f, s, h = self.model(g=g, lat=lat, state_attr=state_attr)
+        return e, f, s, h
 
     def step(self, batch: tuple) -> tuple[dict[str, Any], int]:
         """Args:
@@ -418,6 +424,11 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
                 e, f, s, _ = self(g=g, lat=lat, state_attr=state_attr, l_g=l_g)
                 preds = (e, f, s)
                 labels = (energies, forces, stresses)
+        elif self.model.calc_charge:
+            g, lat, state_attr, energies, forces, stresses, charges = batch
+            e, f, s, _, q = self(g=g, lat=lat, state_attr=state_attr)
+            preds = (e, f, s, q)
+            labels = (energies, forces, stresses, charges)
         else:
             if self.model.calc_magmom:
                 g, lat, state_attr, energies, forces, stresses, magmoms = batch
@@ -463,11 +474,13 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
                 "Energy_MAE": e_mae,
                 "Force_MAE": f_mae,
                 "Stress_MAE": s_mae,
+                "Charge MAE": q_mae,
                 "Magmom_MAE": m_mae,
                 "Energy_RMSE": e_rmse,
                 "Force_RMSE": f_rmse,
                 "Stress_RMSE": s_rmse,
-                "Magmom_RMSE": m_rmse
+                "Magmom_RMSE": m_rmse,
+                "Charge_RMSE": q_rmse
             }
 
         """
@@ -504,6 +517,9 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         m_mae = torch.zeros(1)
         m_rmse = torch.zeros(1)
 
+        q_mae = torch.zeros(1)
+        q_rmse = torch.zeros(1)
+
         total_loss = self.energy_weight * e_loss + self.force_weight * f_loss
 
         if self.model.calc_stresses:
@@ -527,8 +543,13 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
                 m_loss = loss(labels_3, valid_preds[3], **self.loss_params)
                 m_mae = self.mae(labels_3, valid_preds[3])
                 m_rmse = self.rmse(labels_3, valid_preds[3])
-
             total_loss = total_loss + self.magmom_weight * m_loss
+
+        if self.model.calc_charge:
+            q_loss = loss(labels[3], preds[3])
+            q_mae = self.mae(labels[3], preds[3])
+            q_rmse = self.rmse(labels[3], preds[3])
+            total_loss = total_loss + self.charge_weight * q_loss
 
         return {
             "Total_Loss": total_loss,
@@ -536,10 +557,12 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
             "Force_MAE": f_mae,
             "Stress_MAE": s_mae,
             "Magmom_MAE": m_mae,
+            "Charge_MAE": q_mae,
             "Energy_RMSE": e_rmse,
             "Force_RMSE": f_rmse,
             "Stress_RMSE": s_rmse,
             "Magmom_RMSE": m_rmse,
+            "Charge_RMSE": q_rmse,
         }
 
 

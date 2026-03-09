@@ -398,6 +398,45 @@ class TestDataset:
         assert len(val_loader) == 1
         assert len(test_loader) == 1
 
+    def test_mgl_dataloader_with_charge(self, LiFePO4, BaNiO3):
+        from matgl.graph._data_dgl import collate_fn_pes
+
+        structures = [LiFePO4, BaNiO3] * 10
+        energies = np.zeros(20).tolist()
+        f1 = np.zeros((28, 3)).tolist()
+        f2 = np.zeros((10, 3)).tolist()
+        s = np.zeros((3, 3)).tolist()
+        forces = [f1, f2, f1, f2, f1, f2, f1, f2, f1, f2, f1, f2, f1, f2, f1, f2, f1, f2, f1, f2]
+        stresses = [s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s]
+        charges = [np.zeros(28).tolist(), np.zeros(10).tolist()] * 10
+        element_types = get_element_list([LiFePO4, BaNiO3])
+        cry_graph = Structure2Graph(element_types=element_types, cutoff=4.0)
+        dataset = MGLDataset(
+            structures=structures,
+            converter=cry_graph,
+            include_ref_charge=True,
+            labels={"energies": energies, "forces": forces, "stresses": stresses, "charges": charges},
+            save_cache=False,
+        )
+        train_data, val_data, test_data = split_dataset(
+            dataset,
+            frac_list=[0.8, 0.1, 0.1],
+            shuffle=True,
+            random_state=42,
+        )
+        train_loader, val_loader, test_loader = MGLDataLoader(
+            train_data=train_data,
+            val_data=val_data,
+            test_data=test_data,
+            collate_fn=partial(collate_fn_pes, include_charge=True),
+            batch_size=2,
+            num_workers=0,
+        )
+
+        assert len(train_loader) == 8
+        assert len(val_loader) == 1
+        assert len(test_loader) == 1
+
     def test_mgl_dataloader_without_stresses(self, LiFePO4, BaNiO3):
         structures = [LiFePO4, BaNiO3] * 10
         energies = np.zeros(20).tolist()
