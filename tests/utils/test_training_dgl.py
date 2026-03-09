@@ -863,9 +863,9 @@ class TestModelTrainer:
         element_types = get_element_list([LiFePO4, BaNiO3])
         converter = Structure2Graph(element_types=element_types, cutoff=5.0)
         dataset = MGLDataset(
-            threebody_cutoff=4.0,
             structures=structures,
             converter=converter,
+            include_ref_charge=True,
             labels={"energies": energies, "forces": forces, "stresses": stresses, "charges": charges},
             save_cache=False,
         )
@@ -879,7 +879,7 @@ class TestModelTrainer:
             train_data=train_data,
             val_data=val_data,
             test_data=test_data,
-            collate_fn=collate_fn_pes,
+            collate_fn=partial(collate_fn_pes, include_charge=True),
             batch_size=2,
             num_workers=0,
             generator=torch.Generator(device=device),
@@ -908,6 +908,7 @@ class TestModelTrainer:
         lit_model = PotentialLightningModule(
             model=model,
             stress_weight=0.0001,
+            charge_weight=0.0001,
             loss="l1_loss",
             optimizer=optimizer,
             scheduler=scheduler,
