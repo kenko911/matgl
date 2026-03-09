@@ -344,4 +344,4 @@ class QET(MatGLModel):
         if self.return_features:
             node_features, atomic_energies = self(g=g, state_attr=state_feats, total_charge=total_charge)
             return node_features.detach(), atomic_energies.detach()
-        return self(g=g, state_attr=state_feats).detach()
+        return self(g=g, state_attr=state_feats, total_charge=total_charge).detach()
