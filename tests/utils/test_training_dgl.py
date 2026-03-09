@@ -894,8 +894,8 @@ class TestModelTrainer:
         trainer.fit(model=lit_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         trainer.test(lit_model, dataloaders=test_loader)
 
-        pred_LFP_energy = model.predict_structure(LiFePO4)
-        pred_BNO_energy = model.predict_structure(BaNiO3)
+        pred_LFP_energy = model.predict_structure(LiFePO4, total_charge=torch.tensor([0.0]))
+        pred_BNO_energy = model.predict_structure(BaNiO3, total_charge=torch.tensor([0.0]))
 
         # We are not expecting accuracy with 2 epochs. This just tests that the energy is actually < 0.
         assert pred_LFP_energy < 0
@@ -918,8 +918,8 @@ class TestModelTrainer:
         trainer.fit(model=lit_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         trainer.test(lit_model, dataloaders=test_loader)
 
-        pred_LFP_energy = model.predict_structure(LiFePO4)
-        pred_BNO_energy = model.predict_structure(BaNiO3)
+        pred_LFP_energy = model.predict_structure(LiFePO4, total_charge=torch.tensor([0.0]))
+        pred_BNO_energy = model.predict_structure(BaNiO3, total_charge=torch.tensor([0.0]))
 
         # We are not expecting accuracy with 2 epochs. This just tests that the energy is actually < 0.
         assert pred_LFP_energy < 0
