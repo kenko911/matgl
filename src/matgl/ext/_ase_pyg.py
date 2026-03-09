@@ -189,6 +189,7 @@ class PESCalculator(Calculator):
         self.compute_stress = potential.calc_stresses
         self.compute_hessian = potential.calc_hessian
         self.compute_magmom = potential.calc_magmom
+        self.compute_charge = potential.calc_charge
 
         # Handle stress unit conversion
         if stress_unit == "eV/A3":

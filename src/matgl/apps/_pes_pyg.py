@@ -33,6 +33,7 @@ class Potential(nn.Module, IOMixIn):
         calc_stresses: bool = True,
         calc_hessian: bool = False,
         calc_magmom: bool = False,
+        calc_charge: bool = False,
         calc_repuls: bool = False,
         zbl_trainable: bool = False,
         debug_mode: bool = False,
@@ -48,6 +49,7 @@ class Potential(nn.Module, IOMixIn):
             calc_stresses: Enable stress calculations.
             calc_hessian: Enable hessian calculations.
             calc_magmom: Enable site-wise property calculation.
+            calc_charge: Enable charge property calculation
             calc_repuls: Whether the ZBL repulsion is included
             zbl_trainable: Whether zbl repulsion is trainable
             debug_mode: Return gradient of total energy with respect to atomic positions and lattices for checking
@@ -62,6 +64,7 @@ class Potential(nn.Module, IOMixIn):
         self.element_refs: AtomRefPyG | None
         self.debug_mode = debug_mode
         self.calc_repuls = calc_repuls
+        self.calc_charge = calc_charge
 
         if calc_repuls:
             cutoff: float = self.model.cutoff  # type: ignore[assignment]

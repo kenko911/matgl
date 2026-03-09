@@ -102,7 +102,7 @@ class Potential(nn.Module, IOMixIn):
             lat: lattice
             state_attr: State attrs
             l_g: Line graph
-            tot_charge: total charge of the system
+            total_charge: total charge of the system
             ext_pot: external potential (Natoms).
 
         Returns:

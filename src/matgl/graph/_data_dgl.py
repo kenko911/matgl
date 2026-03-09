@@ -76,7 +76,7 @@ def collate_fn_pes(
         else torch.tensor(np.zeros(e.size(dim=0)), dtype=matgl.float_th)
     )
     q = (
-        torch.vstack([d["charges"] for d in labels])
+        torch.hstack([d["charges"] for d in labels])
         if include_charge is True
         else torch.tensor(np.zeros(e.size(dim=0)), dtype=matgl.float_th)
     )
