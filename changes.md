@@ -6,6 +6,10 @@ nav_order: 3
 
 # Change Log
 
+## 2.1.0
+- Bug fix for accidental change of default backend.
+- Training module updated for QET support.
+
 ## 2.0.9
 - Bug fix for missing Atoms2Graph export.
 
