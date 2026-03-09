@@ -326,6 +326,9 @@ DE-AC02-05-CH11231: Materials Project program KC23MP. This work used the Expanse
 Science and Engineering Discovery Environment (XSEDE), which is supported by National Science Foundation grant number
 ACI-1548562.
 
+We also acknowledge the NVIDIA Alchemi Team, specifically Roman Zubatyuk (@zubatyuk) and Alireza Moradzadeh (@moradza),
+for their contributions to warp-acceleration for TensorNet, which yielded ~2-3x speed and memory usage improvements.
+
 [m3gnetrepo]: https://github.com/materialyzeai/m3gnet "M3GNet repo"
 [megnetrepo]: https://github.com/materialyzeai/megnet "MEGNet repo"
 [dgl]: https://www.dgl.ai "DGL website"
