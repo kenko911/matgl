@@ -144,7 +144,7 @@ jobs:
           coverage combine coverage-* || echo "Warning: coverage combine failed"
           coverage xml -o coverage.xml || echo "Warning: coverage xml failed"
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
           fail_ci_if_error: false
