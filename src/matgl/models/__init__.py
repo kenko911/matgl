@@ -15,8 +15,12 @@ if BACKEND == "DGL":
     from ._tensornet_dgl import TensorNet
 else:
     from ._qet_pyg import QET  # type: ignore[assignment]
-    from ._qet_warp_pyg import QET as QETWarp
     from ._tensornet_pyg import TensorNet  # type: ignore[assignment]
-    from ._tensornetwarp_pyg import TensorNet as TensorNetWarp
+
+    try:
+        from ._qet_warp_pyg import QET as QETWarp
+        from ._tensornetwarp_pyg import TensorNet as TensorNetWarp
+    except ImportError:
+        pass
 
 from ._wrappers import TransformedTargetModel
