@@ -34,4 +34,3 @@ The final **MatQ dataset contains 114,445 structures**, after excluding:
 
 - unconverged DFT calculations
 - structures with extremely large force components (**|Fₓ, Fᵧ, F_z| > 50 eV/Å**)
-
