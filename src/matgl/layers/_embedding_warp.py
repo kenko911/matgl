@@ -8,7 +8,11 @@ from torch import nn
 import matgl
 from matgl.ops import fn_compose_tensor, fn_radial_message_passing
 from matgl.utils.cutoff import cosine_cutoff
-from matgl.utils.maths import tensor_norm
+
+
+def _tensor_norm(tensor: torch.Tensor) -> torch.Tensor:
+    """Frobenius norm over the two spatial (3×3) dims of warp tensors shaped (N, 3, 3, units)."""
+    return (tensor * tensor).sum((-3, -2))
 
 
 class TensorEmbedding(nn.Module):
@@ -143,7 +147,7 @@ class TensorEmbedding(nn.Module):
 
         X = fn_compose_tensor(I, A, S)  # (num_nodes, 3, 3, units)
 
-        norm = tensor_norm(X)  # (num_nodes, units)
+        norm = _tensor_norm(X)  # (num_nodes, units)
         norm = self.init_norm(norm)
 
         for linear_scalar in self.linears_scalar:

@@ -13,7 +13,11 @@ from matgl.ops import (
     fn_tensor_matmul_so3_3x3,
 )
 from matgl.utils.cutoff import cosine_cutoff
-from matgl.utils.maths import tensor_norm
+
+
+def _tensor_norm(tensor: torch.Tensor) -> torch.Tensor:
+    """Frobenius norm over the two spatial (3×3) dims of warp tensors shaped (N, 3, 3, units)."""
+    return (tensor * tensor).sum((-3, -2))
 
 
 class TensorNetInteraction(nn.Module):
@@ -122,7 +126,7 @@ class TensorNetInteraction(nn.Module):
             C = 2 * fn_tensor_matmul_so3_3x3(Y, msg)
         I, A, S = fn_decompose_tensor(C)  # noqa: E741
 
-        normp1 = (tensor_norm(C) + 1).unsqueeze(-2)
+        normp1 = (_tensor_norm(C) + 1).unsqueeze(-2)
         I, A, S = I / normp1, A / normp1, S / normp1  # noqa: E741
 
         I = self.linears_tensor[3](I)  # noqa: E741
