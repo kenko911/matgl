@@ -11,7 +11,10 @@ import matgl
 if matgl.config.BACKEND != "PYG":
     pytest.skip("Skipping PYG tests", allow_module_level=True)
 
-from matgl.models._tensornetwarp_pyg import TensorNet
+from matgl.models._tensornet_pyg import TensorNet, _warp_available
+
+if not _warp_available:
+    pytest.skip("Skipping warp tests: nvalchemiops not installed", allow_module_level=True)
 
 
 class TestTensorNet:
@@ -34,7 +37,7 @@ class TestTensorNet:
 
         outputs = {}
         for act in activations:
-            model = TensorNet(is_intensive=False, activation_type=act)
+            model = TensorNet(is_intensive=False, activation_type=act, use_warp=True)
 
             output = model(g=graph)
             print(act, output.item())
