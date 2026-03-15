@@ -16,7 +16,7 @@ from matgl.utils.cutoff import cosine_cutoff
 
 
 def _tensor_norm(tensor: torch.Tensor) -> torch.Tensor:
-    """Frobenius norm over the two spatial (3×3) dims of warp tensors shaped (N, 3, 3, units)."""
+    """Frobenius norm over the two spatial (3x3) dims of warp tensors shaped (N, 3, 3, units)."""
     return (tensor * tensor).sum((-3, -2))
 
 
