@@ -86,8 +86,8 @@ class Molecule2Graph(GraphConverter):
             adj = sp.csr_matrix(dist <= self.cutoff) - sp.eye(natoms, dtype=np.bool_)
             adj = adj.tocoo()
             src_id, dst_id = adj.row, adj.col
-            images = np.zeros((len(src_id), 3))
-            lattice_matrix = np.expand_dims(np.identity(3), axis=0)
+            images = np.zeros((len(src_id), 3))  # type: ignore[assignment]
+            lattice_matrix = np.expand_dims(np.identity(3), axis=0)  # type: ignore[assignment]
             positions = cart_coords
 
         g, lat, _ = super().get_graph_from_processed_structure(
@@ -158,7 +158,7 @@ class Structure2Graph(GraphConverter):
             )
             exclude_self = (src_id != dst_id) | (bond_dist > numerical_tol)
             src_id, dst_id, images = src_id[exclude_self], dst_id[exclude_self], images[exclude_self]
-            lattice_matrix = np.expand_dims(lattice_matrix, axis=0)
+            lattice_matrix = np.expand_dims(lattice_matrix, axis=0)  # type: ignore[assignment]
             frac_coords = structure.frac_coords
 
         g, lat, state_attr = super().get_graph_from_processed_structure(

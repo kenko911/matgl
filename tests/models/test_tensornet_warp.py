@@ -37,7 +37,7 @@ class TestTensorNet:
 
         outputs = {}
         for act in activations:
-            model = TensorNet(is_intensive=False, activation_type=act)
+            model = TensorNet(is_intensive=False, activation_type=act, use_warp=True)
 
             output = model(g=graph)
             print(act, output.item())
