@@ -80,8 +80,6 @@ class TensorNet(MatGLModel):
         width: float = 0.5,
         readout_type: Literal["weighted_atom", "reduce_atom"] = "weighted_atom",
         task_type: Literal["classification", "regression"] = "regression",
-        niters_set2set: int = 3,
-        nlayers_set2set: int = 3,
         field: Literal["node_feat", "edge_feat"] = "node_feat",
         is_intensive: bool = True,
         ntargets: int = 1,
@@ -117,8 +115,6 @@ class TensorNet(MatGLModel):
             width (float): the width of Gaussian radial basis functions
             readout_type (str): Readout function type, `set2set`, `weighted_atom` (default) or `reduce_atom`.
             task_type (str): `classification` or `regression` (default).
-            niters_set2set (int): Number of set2set iterations
-            nlayers_set2set (int): Number of set2set layers
             field (str): Using either "node_feat" or "edge_feat" for Set2Set and Reduced readout
             is_intensive (bool): Whether the prediction is intensive
             ntargets (int): Number of target properties
@@ -184,9 +180,7 @@ class TensorNet(MatGLModel):
             num_rbf = max_n
 
         EmbeddingCls = TensorEmbeddingWarp if self._use_warp else TensorEmbeddingPyG  # type: ignore[assignment]
-        InteractionCls = (  # type: ignore[assignment]
-            TensorNetInteractionWarp if self._use_warp else TensorNetInteractionPyG
-        )
+        InteractionCls = TensorNetInteractionWarp if self._use_warp else TensorNetInteractionPyG  # type: ignore[assignment]
 
         self.tensor_embedding = EmbeddingCls(
             units=units,
@@ -260,21 +254,12 @@ class TensorNet(MatGLModel):
             output: Output property for a batch of graphs, or a dict of layer outputs
             when ``return_all_layer_output=True``.
         """
-        # Extract tensors from dict or PyG Data object
-        if isinstance(g, dict):
-            z = g.get("node_type", g.get("z"))
-            pos = g["pos"]
-            edge_index = g["edge_index"]
-            pbc_offshift = g.get("pbc_offshift", None)
-            batch = g.get("batch", None)
-            num_graphs = g.get("num_graphs", None)
-        else:
-            z = getattr(g, "node_type", getattr(g, "z", None))
-            pos = g.pos
-            edge_index = g.edge_index
-            pbc_offshift = getattr(g, "pbc_offshift", None)
-            batch = getattr(g, "batch", None)
-            num_graphs = getattr(g, "num_graphs", None)
+        z = getattr(g, "node_type", getattr(g, "z", None))
+        pos = g.pos
+        edge_index = g.edge_index
+        pbc_offshift = getattr(g, "pbc_offshift", None)
+        batch = getattr(g, "batch", None)
+        num_graphs = getattr(g, "num_graphs", None)
 
         # Bond vectors and distances
         bond_vec, bond_dist = compute_pair_vector_and_distance(pos, edge_index, pbc_offshift)
