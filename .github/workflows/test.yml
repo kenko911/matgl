@@ -80,8 +80,10 @@ jobs:
         config:
           - os: ubuntu-latest
             python: "3.13"
+            optionals: ["ops", ""]
           - os: macos-latest
             python: "3.11"
+            optionals: [""]
 
     runs-on: ${{ matrix.config.os }}
     env:
@@ -102,7 +104,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv sync --upgrade
-          uv pip install -e ".[ops]"
+          uv pip install -e ".[${{ matrix.config.optionals }}]"
           uv pip install pytest pytest-cov
       - name: pytest
         run: |

@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 from pymatgen.core import Element
 
-from matgl.ext._alchmtk import neighbor_list_from_molecule, neighbor_list_from_structure
 from matgl.graph._converters_pyg import GraphConverter
+
+try:
+    from matgl.ext._alchmtk import neighbor_list_from_molecule, neighbor_list_from_structure
+
+    _alchmtk_available = True
+except ImportError:
+    _alchmtk_available = False
 
 if TYPE_CHECKING:
     from pymatgen.core.structure import Molecule, Structure
@@ -55,17 +62,34 @@ class Molecule2Graph(GraphConverter):
             lat: default lattice for molecular systems (np.ones)
             state_attr: state features
         """
-        src_id, dst_id, _, positions = neighbor_list_from_molecule(
-            molecule=mol,
-            cutoff=self.cutoff,
-            compute_distances=False,
-        )
         natoms = len(mol)
         element_types = self.element_types
         weight = mol.composition.weight / len(mol)
-        nbonds = len(src_id) / (2 * natoms)
-        lattice_matrix = torch.eye(3, dtype=torch.float32, device=src_id.device).unsqueeze(0)
-        images = torch.zeros(len(src_id), 3, dtype=torch.float32, device=src_id.device)
+
+        if _alchmtk_available:
+            src_id, dst_id, _, positions = neighbor_list_from_molecule(
+                molecule=mol,
+                cutoff=self.cutoff,
+                compute_distances=False,
+            )
+            nbonds = len(src_id) / (2 * natoms)
+            lattice_matrix = torch.eye(3, dtype=torch.float32, device=src_id.device).unsqueeze(0)
+            images = torch.zeros(len(src_id), 3, dtype=torch.float32, device=src_id.device)
+        else:
+            cart_coords = mol.cart_coords
+            dist = np.linalg.norm(cart_coords[:, None, :] - cart_coords[None, :, :], axis=-1)
+            dists = mol.distance_matrix.flatten()
+            nbonds = (np.count_nonzero(dists <= self.cutoff) - natoms) / 2
+            nbonds /= natoms
+            import scipy.sparse as sp
+
+            adj = sp.csr_matrix(dist <= self.cutoff) - sp.eye(natoms, dtype=np.bool_)
+            adj = adj.tocoo()
+            src_id, dst_id = adj.row, adj.col
+            images = np.zeros((len(src_id), 3))
+            lattice_matrix = np.expand_dims(np.identity(3), axis=0)
+            positions = cart_coords
+
         g, lat, _ = super().get_graph_from_processed_structure(
             mol,
             src_id,
@@ -105,16 +129,38 @@ class Structure2Graph(GraphConverter):
             lat: lattice for periodic systems
             state_attr: state features
         """
-        src_id, dst_id, _, images, _ = neighbor_list_from_structure(
-            structure=structure,
-            cutoff=self.cutoff,
-            compute_distances=False,
-        )
         element_types = self.element_types
-        lattice_matrix = torch.as_tensor(
-            structure.lattice.matrix.copy(), dtype=torch.float32, device=src_id.device
-        ).unsqueeze(0)
-        frac_coords = torch.as_tensor(structure.frac_coords, dtype=torch.float32, device=src_id.device)
+
+        if _alchmtk_available:
+            src_id, dst_id, _, images, _ = neighbor_list_from_structure(
+                structure=structure,
+                cutoff=self.cutoff,
+                compute_distances=False,
+            )
+            lattice_matrix = torch.as_tensor(
+                structure.lattice.matrix.copy(), dtype=torch.float32, device=src_id.device
+            ).unsqueeze(0)
+            frac_coords = torch.as_tensor(structure.frac_coords, dtype=torch.float32, device=src_id.device)
+        else:
+            from pymatgen.optimization.neighbors import find_points_in_spheres
+
+            numerical_tol = 1.0e-8
+            pbc = np.array([1, 1, 1], dtype=np.int64)
+            lattice_matrix = structure.lattice.matrix
+            cart_coords = structure.cart_coords
+            src_id, dst_id, images, bond_dist = find_points_in_spheres(
+                cart_coords,
+                cart_coords,
+                r=self.cutoff,
+                pbc=pbc,
+                lattice=lattice_matrix,
+                tol=numerical_tol,
+            )
+            exclude_self = (src_id != dst_id) | (bond_dist > numerical_tol)
+            src_id, dst_id, images = src_id[exclude_self], dst_id[exclude_self], images[exclude_self]
+            lattice_matrix = np.expand_dims(lattice_matrix, axis=0)
+            frac_coords = structure.frac_coords
+
         g, lat, state_attr = super().get_graph_from_processed_structure(
             structure,
             src_id,

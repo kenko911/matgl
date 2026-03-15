@@ -11,7 +11,7 @@ please refer to::
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 from torch import nn
@@ -540,7 +540,7 @@ class TensorNet(MatGLModel):
 
     def forward(
         self,
-        g: torch.Tensor | dict[str, torch.Tensor] | object,
+        g: torch.Tensor | dict[str, torch.Tensor] | Any,
         state_attr: torch.Tensor | None = None,
         **kwargs,
     ):
