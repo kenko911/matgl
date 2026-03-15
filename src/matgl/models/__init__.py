@@ -15,9 +15,4 @@ if BACKEND == "DGL":
 else:
     from ._tensornet_pyg import TensorNet  # type: ignore[assignment]
 
-    try:
-        from ._tensornetwarp_pyg import TensorNet as TensorNetWarp
-    except ImportError:
-        print("TensorNetWarp requires Warp, which is not installed. Skipping import.")
-
 from ._wrappers import TransformedTargetModel
