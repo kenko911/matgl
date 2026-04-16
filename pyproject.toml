@@ -77,6 +77,9 @@ dgl = [
 ops = [
   "nvalchemi-toolkit-ops",
 ]
+alchmtk = [
+  "nvalchemi-toolkit",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
