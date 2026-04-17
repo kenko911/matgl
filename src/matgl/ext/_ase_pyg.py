@@ -35,8 +35,14 @@ from pymatgen.core.structure import Molecule, Structure
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.optimization.neighbors import find_points_in_spheres
 
-from matgl.ext._alchmtk import neighbor_list_from_ase
 from matgl.graph._converters_pyg import GraphConverter
+
+try:
+    from matgl.ext._alchmtk import neighbor_list_from_ase
+
+    _alchmtk_available = True
+except ImportError:
+    _alchmtk_available = False
 
 if TYPE_CHECKING:
     from typing import Any
@@ -65,19 +71,17 @@ class OPTIMIZERS(Enum):
 class Atoms2Graph(GraphConverter):
     """Construct a DGL graph from ASE Atoms."""
 
-    def __init__(self, element_types: tuple[str, ...], cutoff: float = 5.0, use_warp: bool = False):
+    def __init__(self, element_types: tuple[str, ...], cutoff: float = 5.0):
         """Init Atoms2Graph from element types and cutoff radius.
 
         Args:
             element_types: List of elements present in dataset for graph conversion. This ensures all graphs are
                 constructed with the same dimensionality of features.
             cutoff: Cutoff radius for graph representation
-            use_warp: Whether NVIDIA Warp neighbor list is used.
         """
         self.element_types = tuple(element_types)
         self.cutoff = cutoff
         self.max_neighbors = 0.3
-        self.use_warp = use_warp
 
     def get_graph(self, atoms: Atoms) -> tuple[Data, torch.Tensor, list | np.ndarray]:
         """Get a DGL graph from an input Atoms.
@@ -90,7 +94,7 @@ class Atoms2Graph(GraphConverter):
             state_attr: state features
         """
         # use NVIDIA Warp neighbor list
-        if self.use_warp:
+        if _alchmtk_available:
             src_id, dst_id, _, images, positions, max_neighbors = neighbor_list_from_ase(
                 atoms=atoms,
                 cutoff=self.cutoff,
@@ -147,7 +151,7 @@ class Atoms2Graph(GraphConverter):
             src_id,
             dst_id,
             images if atoms.pbc.all() else np.zeros((len(src_id), 3)),
-            [lattice_matrix] if atoms.pbc.all() and not self.use_warp else lattice_matrix,  # type: ignore[arg-type]
+            [lattice_matrix] if atoms.pbc.all() and not _alchmtk_available else lattice_matrix,  # type: ignore[arg-type]
             element_types,
             frac_coords if atoms.pbc.all() else cart_coords,
             is_atoms=True,
@@ -168,7 +172,6 @@ class PESCalculator(Calculator):
         stress_unit: Literal["eV/A3", "GPa"] = "GPa",
         stress_weight: float = 1.0,
         use_voigt: bool = False,
-        use_warp: bool = False,
         **kwargs,
     ):
         """
@@ -181,7 +184,6 @@ class PESCalculator(Calculator):
             stress_unit (str): stress unit either in "GPa" or "eV/A^3". Default: "GPa"
             stress_weight (float): conversion factor from GPa to eV/A^3, if it is set to 1.0, the unit is in GPa
             use_voigt (bool): whether the voigt notation is used for stress output
-            use_warp (bool): Whether NVIDIA Warp neighbor list is used.
             **kwargs: Kwargs pass through to super().__init__().
         """
         super().__init__(**kwargs)
@@ -220,7 +222,7 @@ class PESCalculator(Calculator):
         self.element_types: tuple[str, ...] = potential.model.element_types  # type: ignore[assignment,union-attr]
         self.cutoff: float = potential.model.cutoff  # type: ignore[assignment,union-attr]
         self.use_voigt = use_voigt
-        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff, use_warp)
+        self._atoms2graph = Atoms2Graph(self.element_types, self.cutoff)
 
     def calculate(  # type:ignore[override]
         self,

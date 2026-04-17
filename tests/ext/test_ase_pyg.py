@@ -10,14 +10,14 @@ from matgl import load_model
 
 if matgl.config.BACKEND != "PYG":
     pytest.skip("Skipping PYG tests", allow_module_level=True)
+
 from ase.build import molecule
 from pymatgen.io.ase import AseAtomsAdaptor
 
 from matgl.ext.ase import Atoms2Graph, M3GNetCalculator, MolecularDynamics, PESCalculator, Relaxer
 
 
-@pytest.mark.parametrize("use_warp", [True, False])
-def test_PESCalculator_and_M3GNetCalculator(MoS, caplog, use_warp):
+def test_PESCalculator_and_M3GNetCalculator(MoS, caplog):
     import logging
 
     caplog.set_level(logging.INFO)
@@ -51,11 +51,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, caplog, use_warp):
         caplog.clear()
 
         calc = PESCalculator(
-            potential=ff,
-            state_attr=None,
-            stress_unit=case["stress_unit"],
-            stress_weight=case["stress_weight"],
-            use_warp=use_warp,
+            potential=ff, state_attr=None, stress_unit=case["stress_unit"], stress_weight=case["stress_weight"]
         )
         s_ase.set_calculator(calc)
 
@@ -97,7 +93,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, caplog, use_warp):
     # Backward compatibility: M3GNetCalculator
     # ------------------------------------------------------------------
 
-    calc = M3GNetCalculator(potential=ff, use_warp=use_warp)
+    calc = M3GNetCalculator(potential=ff)
     s_ase.set_calculator(calc)
 
     assert isinstance(s_ase.get_potential_energy(), float)
@@ -106,12 +102,11 @@ def test_PESCalculator_and_M3GNetCalculator(MoS, caplog, use_warp):
     assert list(calc.results["hessian"].shape) == [6, 6]
 
 
-@pytest.mark.parametrize("use_warp", [True, False])
-def test_PESCalculator_mol(AcAla3NHMe, use_warp):
+def test_PESCalculator_mol(AcAla3NHMe):
     adaptor = AseAtomsAdaptor()
     mol = adaptor.get_atoms(AcAla3NHMe)
     ff = matgl.load_model("pretrained_models/TensorNet-MatPES-PBE-v2025.1-PES/")
-    calc = PESCalculator(potential=ff, use_warp=use_warp)
+    calc = PESCalculator(potential=ff)
     mol.set_calculator(calc)
     assert isinstance(mol.get_potential_energy(), float)
     assert list(mol.get_forces().shape) == [42, 3]
@@ -132,11 +127,10 @@ def test_Relaxer(MoS):
     os.remove("MoS_relax.traj")
 
 
-@pytest.mark.parametrize("use_warp", [True, False])
-def test_get_graph_from_atoms(LiFePO4, use_warp):
+def test_get_graph_from_atoms(LiFePO4):
     adaptor = AseAtomsAdaptor()
     structure_ase = adaptor.get_atoms(LiFePO4)
-    a2g = Atoms2Graph(element_types=["Li", "Fe", "P", "O"], cutoff=4.0, use_warp=use_warp)
+    a2g = Atoms2Graph(element_types=["Li", "Fe", "P", "O"], cutoff=4.0)
     graph, _, state = a2g.get_graph(structure_ase)
     # check the number of nodes
     assert np.allclose(graph.num_nodes, len(structure_ase.get_atomic_numbers()))
@@ -150,10 +144,9 @@ def test_get_graph_from_atoms(LiFePO4, use_warp):
     assert np.allclose(state, [0.0, 0.0])
 
 
-@pytest.mark.parametrize("use_warp", [True, False])
-def test_get_graph_from_atoms_mol(use_warp):
+def test_get_graph_from_atoms_mol():
     mol = molecule("CH4")
-    a2g = Atoms2Graph(element_types=["H", "C"], cutoff=4.0, use_warp=use_warp)
+    a2g = Atoms2Graph(element_types=["H", "C"], cutoff=4.0)
     graph, _, state = a2g.get_graph(mol)
     # check the number of nodes
     assert np.allclose(graph.num_nodes, len(mol.get_atomic_numbers()))

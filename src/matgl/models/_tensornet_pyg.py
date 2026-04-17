@@ -11,25 +11,22 @@ please refer to::
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 from torch import nn
-from torch_geometric.data import Batch, Data
 
 import matgl
 from matgl.config import DEFAULT_ELEMENTS
-from matgl.graph._compute_pyg import (
-    compute_pair_vector_and_distance,
-)
+from matgl.graph._compute_pyg import compute_pair_vector_and_distance
 from matgl.layers import (
     MLP,
     ActivationFunction,
     BondExpansion,
 )
-from matgl.layers._embedding_pyg import TensorEmbedding
-from matgl.layers._graph_convolution_pyg import TensorNetInteraction
-from matgl.layers._readout_pyg import (
+from matgl.layers._embedding_pyg import TensorEmbedding as TensorEmbeddingPyG
+from matgl.layers._graph_convolution_pyg import TensorNetInteraction as TensorNetInteractionPyG
+from matgl.layers._readout_torch import (
     ReduceReadOut,
     WeightedAtomReadOut,
     WeightedReadOut,
@@ -38,6 +35,15 @@ from matgl.utils.maths import decompose_tensor, scatter_add, tensor_norm
 
 from ._core import MatGLModel
 
+try:
+    from matgl.layers._embedding_warp import TensorEmbedding as TensorEmbeddingWarp
+    from matgl.layers._graph_convolution_warp import TensorNetInteraction as TensorNetInteractionWarp
+    from matgl.ops import fn_tensor_norm3, graph_transform
+
+    _warp_available = True
+except ImportError:
+    _warp_available = False
+
 if TYPE_CHECKING:
     from matgl.graph._converters_pyg import GraphConverter
 
@@ -45,7 +51,11 @@ logger = logging.getLogger(__file__)
 
 
 class TensorNet(MatGLModel):
-    """The main TensorNet model. The official implementation can be found in https://github.com/torchmd/torchmd-net."""
+    """The main TensorNet model. The official implementation can be found in https://github.com/torchmd/torchmd-net.
+
+    When the ``nvalchemi-toolkit-ops`` package is installed, GPU-accelerated warp kernels are used automatically
+    for message passing. Pass ``use_warp=False`` to force the plain PyG implementation.
+    """
 
     __version__ = 1
 
@@ -70,11 +80,10 @@ class TensorNet(MatGLModel):
         width: float = 0.5,
         readout_type: Literal["weighted_atom", "reduce_atom"] = "weighted_atom",
         task_type: Literal["classification", "regression"] = "regression",
-        niters_set2set: int = 3,
-        nlayers_set2set: int = 3,
         field: Literal["node_feat", "edge_feat"] = "node_feat",
         is_intensive: bool = True,
         ntargets: int = 1,
+        use_warp: bool | None = None,
         **kwargs,
     ):
         r"""
@@ -106,11 +115,13 @@ class TensorNet(MatGLModel):
             width (float): the width of Gaussian radial basis functions
             readout_type (str): Readout function type, `set2set`, `weighted_atom` (default) or `reduce_atom`.
             task_type (str): `classification` or `regression` (default).
-            niters_set2set (int): Number of set2set iterations
-            nlayers_set2set (int): Number of set2set layers
             field (str): Using either "node_feat" or "edge_feat" for Set2Set and Reduced readout
             is_intensive (bool): Whether the prediction is intensive
             ntargets (int): Number of target properties
+            use_warp (bool | None): Whether to use warp-accelerated kernels from ``nvalchemi-toolkit-ops``.
+                ``None`` (default) auto-detects: warp is used when the package is installed.
+                ``True`` raises ``ImportError`` if the package is not available.
+                ``False`` forces the plain PyG implementation.
             **kwargs: For future flexibility. Not used at the moment.
 
         """
@@ -124,6 +135,17 @@ class TensorNet(MatGLModel):
             raise ValueError(
                 f"Invalid activation type, please try using one of {[af.name for af in ActivationFunction]}"
             ) from None
+
+        # Resolve warp availability
+        if use_warp is None:
+            self._use_warp = _warp_available
+        elif use_warp and not _warp_available:
+            raise ImportError(
+                "use_warp=True but nvalchemi-toolkit-ops is not installed. "
+                "Install it or pass use_warp=False to use the plain PyG backend."
+            )
+        else:
+            self._use_warp = use_warp
 
         self.element_types = element_types  # type: ignore
 
@@ -157,7 +179,10 @@ class TensorNet(MatGLModel):
         if rbf_type == "SphericalBessel":
             num_rbf = max_n
 
-        self.tensor_embedding = TensorEmbedding(
+        EmbeddingCls = TensorEmbeddingWarp if self._use_warp else TensorEmbeddingPyG  # type: ignore[assignment]
+        InteractionCls = TensorNetInteractionWarp if self._use_warp else TensorNetInteractionPyG  # type: ignore[assignment]
+
+        self.tensor_embedding = EmbeddingCls(
             units=units,
             degree_rbf=num_rbf,
             activation=activation,
@@ -167,11 +192,11 @@ class TensorNet(MatGLModel):
         )
 
         self.layers = nn.ModuleList(
-            {
-                TensorNetInteraction(num_rbf, units, activation, cutoff, equivariance_invariance_group, dtype)
+            [
+                InteractionCls(num_rbf, units, activation, cutoff, equivariance_invariance_group, dtype)
                 for _ in range(nblocks)
                 if nblocks != 0
-            }
+            ]
         )
 
         self.out_norm = nn.LayerNorm(3 * units, dtype=dtype)
@@ -179,7 +204,9 @@ class TensorNet(MatGLModel):
         if is_intensive:
             input_feats = units
             if readout_type == "weighted_atom":
-                self.readout = WeightedAtomReadOut(in_feats=input_feats, dims=[units, units], activation=activation)  # type:ignore[assignment]
+                self.readout = WeightedAtomReadOut(  # type:ignore[assignment]
+                    in_feats=input_feats, dims=[units, units], activation=activation
+                )
                 readout_feats = units
             else:
                 self.readout = ReduceReadOut("mean", field=field)  # type: ignore
@@ -210,70 +237,96 @@ class TensorNet(MatGLModel):
 
     def forward(
         self,
-        g: Data,
+        g: Any,
         state_attr: torch.Tensor | None = None,
         return_all_layer_output: bool = False,
         **kwargs,
     ):
         """
-
         Args:
-            g : PyG Graph for a batch of graphs.
+            g: PyG Data object or dict with keys 'node_type'/'z', 'pos', 'edge_index',
+               and optionally 'pbc_offshift', 'batch', 'num_graphs'.
             state_attr: State attrs for a batch of graphs.
-            return_all_layer_output: Whether to return outputs of all layers.
+            return_all_layer_output: Whether to return outputs of all intermediate layers.
             **kwargs: For future flexibility. Not used at the moment.
 
         Returns:
-            output: output: Output property for a batch of graphs
+            output: Output property for a batch of graphs, or a dict of layer outputs
+            when ``return_all_layer_output=True``.
         """
-        # Obtain graph, with distances and relative position vectors
-        bond_vec, bond_dist = compute_pair_vector_and_distance(g.pos, g.edge_index, g.pbc_offshift)
-        g.bond_vec = bond_vec
-        g.bond_dist = bond_dist
+        z = getattr(g, "node_type", getattr(g, "z", None))
+        pos = g.pos
+        edge_index = g.edge_index
+        pbc_offshift = getattr(g, "pbc_offshift", None)
+        batch = getattr(g, "batch", None)
+        num_graphs = getattr(g, "num_graphs", None)
+
+        # Bond vectors and distances
+        bond_vec, bond_dist = compute_pair_vector_and_distance(pos, edge_index, pbc_offshift)
 
         # Expand distances with radial basis functions
-        g.edge_attr = self.bond_expansion(g.bond_dist)
-        # Embedding layer
-        X, _ = self.tensor_embedding(g.node_type, g.edge_index, g.edge_attr, g.bond_dist, g.bond_vec, state_attr)
+        edge_attr = self.bond_expansion(bond_dist)
 
-        fea_dict = {
-            "edge_attr": g.edge_attr,
-            "embedding": X,
-        }
+        fea_dict: dict[str, Any] = {"edge_attr": edge_attr}
 
-        # Interaction layers
-        for i, layer in enumerate(self.layers):
-            X = layer(g.edge_index, g.bond_dist, g.edge_attr, X)
-            fea_dict[f"gc_{i + 1}"] = X
+        if self._use_warp:
+            (  # type: ignore[name-defined]
+                row_data,
+                row_indices,
+                row_indptr,
+                col_data,
+                col_indices,
+                col_indptr,
+            ) = graph_transform(edge_index.int(), z.shape[0])  # type: ignore[union-attr]
+            X = self.tensor_embedding(z, edge_index, bond_dist, bond_vec, edge_attr, col_data, col_indptr)
+            fea_dict["embedding"] = X
+            for i, layer in enumerate(self.layers):
+                X = layer(
+                    X,
+                    edge_index,
+                    bond_dist,
+                    edge_attr,
+                    row_data,
+                    row_indices,
+                    row_indptr,
+                    col_data,
+                    col_indices,
+                    col_indptr,
+                )
+                fea_dict[f"gc_{i + 1}"] = X
+            x = fn_tensor_norm3(X)  # type: ignore[name-defined]
+        else:
+            X, _ = self.tensor_embedding(z, edge_index, edge_attr, bond_dist, bond_vec, state_attr)
+            fea_dict["embedding"] = X
+            for i, layer in enumerate(self.layers):
+                X = layer(edge_index, bond_dist, edge_attr, X)
+                fea_dict[f"gc_{i + 1}"] = X
+            scalars, skew_metrices, traceless_tensors = decompose_tensor(X)
+            x = torch.cat((tensor_norm(scalars), tensor_norm(skew_metrices), tensor_norm(traceless_tensors)), dim=-1)
 
-        scalars, skew_metrices, traceless_tensors = decompose_tensor(X)
-
-        x = torch.cat((tensor_norm(scalars), tensor_norm(skew_metrices), tensor_norm(traceless_tensors)), dim=-1)
         x = self.out_norm(x)
         x = self.linear(x)
-
-        g.node_feat = x
         fea_dict["readout"] = x
 
         if self.is_intensive:
-            node_vec = self.readout(g)
-            vec = node_vec  # type: ignore
-            output = self.final_layer(vec)
+            node_vec = self.readout(x, batch)
+            output = self.final_layer(node_vec)
             if self.task_type == "classification":
                 output = self.sigmoid(output)
             output = torch.squeeze(output)
         else:
-            atomic_energies = self.final_layer(g.node_feat)
-            if isinstance(g, Batch) and hasattr(g, "batch") and g.batch is not None:
-                # edge case, if we do squeeze() directly, we will get torch.size([]) and it will crash in the training.
+            atomic_energies = self.final_layer(x)
+            if batch is not None:
+                # edge case: avoid losing the batch dimension on size-(1,1) outputs
                 if atomic_energies.shape == (1, 1):
                     atomic_energies = atomic_energies.squeeze(-1)
                 else:
                     atomic_energies = atomic_energies.squeeze()
-                # Batch case: Use scatter_add with batch tensor
-                output = scatter_add(atomic_energies, g.batch, dim_size=g.num_graphs)
+                batch_long = batch.to(torch.long)
+                if num_graphs is None:
+                    num_graphs = int(batch_long.max().item()) + 1
+                output = scatter_add(atomic_energies, batch_long, dim_size=num_graphs)  # type: ignore[arg-type]
             else:
-                # Single graph case: Sum all energies (equivalent to scatter_add with all nodes in one graph)
                 output = torch.sum(atomic_energies, dim=0, keepdim=True).squeeze()
 
         fea_dict["final"] = output
@@ -301,12 +354,9 @@ class TensorNet(MatGLModel):
         Returns:
             output (torch.tensor): output property
         """
-        allowed_output_layers = [
-            "edge_attr",
-            "embedding",
-            "readout",
-            "final",
-        ] + [f"gc_{i + 1}" for i in range(self.num_layers)]
+        allowed_output_layers = ["edge_attr", "embedding", "readout", "final"] + [
+            f"gc_{i + 1}" for i in range(self.num_layers)
+        ]
 
         if not return_features:
             output_layers = ["final"]

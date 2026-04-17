@@ -6,6 +6,41 @@ nav_order: 3
 
 # Change Log
 
+## 2.1.1
+- Merged `TensorNet` (PyG) and `TensorNetWarp` into a single `TensorNet` class with optional warp acceleration
+  (`use_warp` parameter; auto-detected when `nvalchemi-toolkit-ops` is installed).
+- Moved warp-accelerated `TensorEmbedding` and `TensorNetInteraction` layers to `matgl.layers._embedding_warp`
+  and `matgl.layers._graph_convolution_warp`.
+- Made `nvalchemiops` an optional dependency throughout: `_pymatgen_pyg`, `_ase_pyg`, and warp layer imports
+  all fall back gracefully to pymatgen-based neighbor list construction when the package is absent.
+  
+## 2.1.0
+- Bug fix for accidental change of default backend.
+- Training module updated for QET support.
+
+## 2.0.9
+- Bug fix for missing Atoms2Graph export.
+
+## 2.0.7
+- Refactored PyG TensorNet embedding and interaction blocks to pure PyTorch for improved compatibility. (@kenko911)
+- Improved handling of stress units in `PESCalculator`. (@kenko911)
+- Enabled returning intermediate crystal features from CHGNet and TensorNet models. (@bowen-bd)
+- Added GPU-accelerated neighbor list construction and improved CUDA neighbor list performance and retry logic.
+  (@zubatyuk)
+- Integrated NVIDIA TensorNet Warp CUDA kernels into the main branch. (@atulcthakur, @zubatyuk)
+- Improved QET training support via updates to `Atoms2Graph`, `collate_fn_pes`, and `MGLDataset` (including
+  `include_ref_charge`). (@kenko911)
+- Documentation updates for QET, including references and DOI links. (@kenko911)
+
+## 2.0.6
+- Bug fix for CHGnet loading.
+
+## 2.0.5
+- Improved error messages for backend/model mismatch. Try to transparently handle simple situations.
+
+## 2.0.4
+- Bug fix for matgl.graph.data and matgl.graph.converter imports for different backends.
+
 ## 2.0.3
 - Bug fix for matgl.ext.pymatgen import for different backends.
 
