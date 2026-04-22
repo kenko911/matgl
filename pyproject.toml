@@ -47,7 +47,7 @@ classifiers = [
 ]
 dependencies = [
     "ase",
-    "torch",  
+    "torch",
     "torchdata",
     "lightning<=2.6.1",
     "pydantic",
@@ -55,6 +55,7 @@ dependencies = [
     "numpy<3.0",
     "torch-geometric",
     "pymatgen-core>=2026.4.16",
+    "huggingface_hub>=0.24",
 ]
 version = "2.1.1"
 
