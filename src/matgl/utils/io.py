@@ -184,6 +184,7 @@ class IOMixIn:
         revision: str | None = None,
         create_pr: bool = False,
         repo_type: str = "model",
+        readme_text: str | None = None,
     ) -> str:
         """Serialize the model and upload it to the Hugging Face Hub.
 
@@ -205,6 +206,7 @@ class IOMixIn:
             create_pr: If True, a pull request will be opened instead of committing to
                 the branch directly.
             repo_type: Repo type, typically ``"model"``.
+            readme_text: Optional README.md text to upload.
 
         Returns:
             The URL of the resulting commit on the Hugging Face Hub.
@@ -218,7 +220,7 @@ class IOMixIn:
 
             readme = tmp_path / "README.md"
             if not readme.exists():
-                readme.write_text(_generate_hf_model_card(self, metadata=metadata))
+                readme.write_text(_generate_hf_model_card(self, metadata=metadata, readme_text=readme_text))
 
             commit = api.upload_folder(
                 folder_path=str(tmp_path),
@@ -456,12 +458,13 @@ def _download_from_hf_hub(
     }
 
 
-def _generate_hf_model_card(model, metadata: dict | None = None) -> str:
+def _generate_hf_model_card(model, metadata: dict | None = None, readme_text: str | None = None) -> str:
     """Generate a minimal README.md model card for a matgl model uploaded to the Hub.
 
     Args:
         model: The model instance being uploaded.
         metadata: Optional user-supplied metadata dict.
+        readme_text: Optional README.md text to upload. If None, a default README.md text will be generated.
 
     Returns:
         A markdown string suitable for use as ``README.md`` on the Hugging Face Hub.
@@ -475,6 +478,18 @@ def _generate_hf_model_card(model, metadata: dict | None = None) -> str:
         except (TypeError, ValueError):
             meta_block = ""
 
+    if readme_text is None:
+        readme_text = (
+            f"# {cls_name}\n\n"
+            f"This is a [matgl](https://github.com/materialsvirtuallab/matgl) `{cls_name}` "
+            f"model (version {model_version}).\n\n"
+            "## Usage\n\n"
+            "```python\n"
+            "import matgl\n\n"
+            'model = matgl.load_model("<owner>/<repo>")\n'
+            "```\n"
+        )
+
     return (
         "---\n"
         "library_name: matgl\n"
@@ -483,14 +498,7 @@ def _generate_hf_model_card(model, metadata: dict | None = None) -> str:
         "- materials-science\n"
         "- graph-neural-network\n"
         "---\n\n"
-        f"# {cls_name}\n\n"
-        f"This is a [matgl](https://github.com/materialsvirtuallab/matgl) `{cls_name}` "
-        f"model (version {model_version}).\n\n"
-        "## Usage\n\n"
-        "```python\n"
-        "import matgl\n\n"
-        'model = matgl.load_model("<owner>/<repo>")\n'
-        "```\n"
+        f"{readme_text}"
         f"{meta_block}"
     )
 
