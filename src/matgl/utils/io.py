@@ -488,8 +488,8 @@ def _generate_hf_model_card(model, metadata: dict | None = None) -> str:
         f"model (version {model_version}).\n\n"
         "## Usage\n\n"
         "```python\n"
-        "from matgl.utils.io import load_model\n\n"
-        'model = load_model("<owner>/<repo>")\n'
+        "import matgl\n\n"
+        'model = matgl.load_model("<owner>/<repo>")\n'
         "```\n"
         f"{meta_block}"
     )
@@ -522,5 +522,5 @@ def get_available_pretrained_models() -> list[str]:
     Returns:
         List of available models.
     """
-    r = requests.get("http://api.github.com/repos/materialsvirtuallab/matgl/contents/pretrained_models")
+    r = requests.get("http://api.github.com/repos/materialyzeai/matgl/contents/pretrained_models")
     return [d["name"] for d in json.loads(r.content.decode("utf-8")) if d["type"] == "dir"]

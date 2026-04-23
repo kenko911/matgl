@@ -168,31 +168,7 @@ as other simple administrative tasks (e.g., clearing the cache). Some simple exa
 
 For a full range of options, use `mgl -h`.
 
-### Code
-
-Users who just want to use the models out of the box should use the newly implemented `matgl.load_model` convenience
-method. The following is an example of a prediction of the formation energy for CsCl.
-
-```python
-from pymatgen.core import Lattice, Structure
-import matgl
-
-model = matgl.load_model("MEGNet-MP-2018.6.1-Eform")
-
-# This is the structure obtained from the Materials Project.
-struct = Structure.from_spacegroup("Pm-3m", Lattice.cubic(4.1437), ["Cs", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
-eform = model.predict_structure(struct)
-print(f"The predicted formation energy for CsCl is {float(eform.numpy()):.3f} eV/atom.")
-```
-
-To obtain a listing of available pre-trained models,
-
-```python
-import matgl
-print(matgl.get_available_pretrained_models())
-```
-
-## Hugging Face Hub
+## Obtaining Models
 
 Pre-trained MatGL models can be loaded from (and published to) the [Hugging Face Hub]. Any repo that contains the standard matgl
 serialization artifacts (`model.pt`, `state.pt`, and `model.json`) can be loaded directly using `matgl.load_model` by
@@ -218,6 +194,30 @@ To publish a trained model to the Hugging Face Hub, use `push_to_hub` (requires 
 
 ```python
 model.push_to_hub("your-username/your-matgl-model", private=False)
+```
+
+To list available matgl models, you can use the `HfApi`:
+
+```python
+from huggingface_hub import HfApi
+hf = HfApi()
+print(list(hf.list_models(filter="matgl")))
+```
+
+### Model Usage
+
+he following is an example of a prediction of the formation energy for CsCl.
+
+```python
+from pymatgen.core import Lattice, Structure
+import matgl
+
+model = matgl.load_model("MEGNet-MP-2018.6.1-Eform")
+
+# This is the structure obtained from the Materials Project.
+struct = Structure.from_spacegroup("Pm-3m", Lattice.cubic(4.1437), ["Cs", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+eform = model.predict_structure(struct)
+print(f"The predicted formation energy for CsCl is {float(eform.numpy()):.3f} eV/atom.")
 ```
 
 ## Model Training
