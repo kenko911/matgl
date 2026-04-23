@@ -192,20 +192,34 @@ import matgl
 print(matgl.get_available_pretrained_models())
 ```
 
-## Pytorch Hub
+## Hugging Face Hub
 
-The pre-trained models are also available on Pytorch hub. To use these models, simply install matgl and use the
-following commands:
+Pre-trained MatGL models can be loaded from (and published to) the [Hugging Face Hub]. Any repo that contains the standard matgl
+serialization artifacts (`model.pt`, `state.pt`, and `model.json`) can be loaded directly using `matgl.load_model` by
+passing the repo id in `"owner/name"` form. Pre-trained models released by the [Materialyze] lab can be found under the
+[Materialyze Hugging Face Organization](https://huggingface.co/Materialyze).
 
 ```python
-import torch
+import matgl
 
-# To obtain a listing of models
-torch.hub.list("materialsvirtuallab/matgl", force_reload=True)
-
-# To load a model
-model = torch.hub.load("materialyzeai/matgl", 'm3gnet_universal_potential')
+# Load directly from a Hugging Face Hub repo id.
+model = matgl.load_model("Materialyze/TensorNet-PES-MatPES-2025.1")
 ```
+
+Equivalently, any matgl model class exposes a `from_pretrained` classmethod:
+
+```python
+from matgl.models import M3GNet
+
+model = M3GNet.from_pretrained("Materialyze/TensorNet-PES-MatPES-2025.1")
+```
+
+To publish a trained model to the Hugging Face Hub, use `push_to_hub` (requires `huggingface-cli login` or a `token`):
+
+```python
+model.push_to_hub("your-username/your-matgl-model", private=False)
+```
+
 ## Model Training
 
 In the PES training, the unit of energies, forces and stresses (optional) in the training, validation and test sets is extremely important to be consistent with the unit used in MatGL.
@@ -357,3 +371,4 @@ for their contributions to warp-acceleration for TensorNet, which yielded ~2-3x 
 [MatPES]: https://matpes.ai
 [MatCalc]: https://matcalc.ai
 [Materials Virtual Lab Docker Repository]: https://hub.docker.com/orgs/materialsvirtuallab/repositories
+[Hugging Face Hub]: https://huggingface.co
