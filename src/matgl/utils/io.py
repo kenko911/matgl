@@ -269,8 +269,9 @@ class IOMixIn:
             repo_id: Repository id on the Hugging Face Hub (e.g. ``"owner/matgl-model"``).
             revision: Optional branch, tag or commit hash to download from.
             token: Optional Hugging Face authentication token for private repos.
-            cache_dir: Directory to cache downloaded files. Defaults to the
-                ``huggingface_hub`` cache location.
+            cache_dir: Directory to cache downloaded files. Defaults to
+                ``MATGL_CACHE`` (i.e. ``~/.cache/matgl``) so that matgl shares a single
+                cache location for both the legacy GitHub mirror and the Hugging Face Hub.
             force_download: If True, re-download files even if they are cached.
             **kwargs: Additional kwargs forwarded to :meth:`IOMixIn.load`.
 
@@ -475,11 +476,14 @@ def _download_from_hf_hub(
 ) -> dict[str, Path]:
     """Download the three matgl model artifacts from a Hugging Face Hub repo.
 
+    Downloads are cached under ``MATGL_CACHE`` by default so that matgl shares a single
+    cache location for both the legacy GitHub mirror and the Hugging Face Hub.
+
     Args:
         repo_id: Hugging Face repo id of the form ``"owner/name"``.
         revision: Optional branch, tag, or commit hash.
         token: Optional authentication token.
-        cache_dir: Optional cache directory override.
+        cache_dir: Optional cache directory override. Defaults to ``MATGL_CACHE``.
         force_download: If True, re-download files even if cached.
         **_ignored: Swallows unrelated kwargs so this helper can be used as a drop-in
             fallback inside ``_get_file_paths``.
@@ -487,6 +491,7 @@ def _download_from_hf_hub(
     Returns:
         Mapping of filename to local path for the downloaded artifacts.
     """
+    resolved_cache_dir = str(cache_dir) if cache_dir is not None else str(MATGL_CACHE)
     return {
         fn: Path(
             hf_hub_download(
@@ -494,7 +499,7 @@ def _download_from_hf_hub(
                 filename=fn,
                 revision=revision,
                 token=token,
-                cache_dir=str(cache_dir) if cache_dir is not None else None,
+                cache_dir=resolved_cache_dir,
                 force_download=force_download,
             )
         )
