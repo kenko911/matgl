@@ -13,7 +13,7 @@ nav_order: 3
   and `matgl.layers._graph_convolution_warp`.
 - Made `nvalchemiops` an optional dependency throughout: `_pymatgen_pyg`, `_ase_pyg`, and warp layer imports
   all fall back gracefully to pymatgen-based neighbor list construction when the package is absent.
-  
+
 ## 2.1.0
 - Bug fix for accidental change of default backend.
 - Training module updated for QET support.
