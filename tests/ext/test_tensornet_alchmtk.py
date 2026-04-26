@@ -547,7 +547,7 @@ class TestEndToEnd:
 class TestPretrained:
     def test_pretrained_MoS_energy(self, MoS):
         """Pretrained TensorNet on MoS with NL built via NeighborListHook."""
-        pot = matgl.load_model("pretrained_models/TensorNet-MatPES-PBE-v2025.1-PES/")
+        pot = matgl.load_model("TensorNet-PES-MatPES-PBE-2025.2")
         wrapper = TensorNetWrapper.from_potential(pot)
         _set_active_outputs(wrapper, {"energy", "forces"})
 
@@ -567,7 +567,7 @@ class TestPretrained:
 
     def test_pretrained_molecule_energy(self, AcAla3NHMe):
         """Pretrained TensorNet on AcAla3NHMe molecule with NL built via NeighborListHook."""
-        pot = matgl.load_model("pretrained_models/TensorNet-MatPES-PBE-v2025.1-PES/")
+        pot = matgl.load_model("TensorNet-PES-MatPES-PBE-2025.2")
         wrapper = TensorNetWrapper.from_potential(pot)
         _set_active_outputs(wrapper, {"energy", "forces"})
 
