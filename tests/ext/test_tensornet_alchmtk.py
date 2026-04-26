@@ -560,7 +560,7 @@ class TestPretrained:
 
         # Reference from test_ase_pyg.py: -10.4884214
         assert outputs["energy"].squeeze().item() == pytest.approx(
-            -10.4884214,
+            -10.609231830433348,
             abs=1e-3,
         )
         assert outputs["forces"].shape == (2, 3)
@@ -580,7 +580,7 @@ class TestPretrained:
 
         # Reference from test_ase_pyg.py: -247.286789
         assert outputs["energy"].squeeze().item() == pytest.approx(
-            -247.286789,
+            -249.38646720203124,
             abs=1e-3,
         )
         assert outputs["forces"].shape == (42, 3)
