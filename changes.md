@@ -6,6 +6,9 @@ nav_order: 3
 
 # Change Log
 
+## 2.2.1
+- Updated HuggingFace Repo Id to lowercase "materialyze".
+
 ## 2.2.0
 - Fixed an incorrect message-passing convention in the PyG and DGL `TensorNet` interaction and embedding blocks.
   Edge messages are now aggregated onto the source (center) node so that each atom correctly collects information
