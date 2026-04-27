@@ -105,7 +105,7 @@ def test_load_model_falls_back_to_hf_hub(tmp_path):
 
 
 def test_load_model_prefers_materialyze_hf_org(tmp_path):
-    """A bare name should be resolved via the Materialyze HF org before falling back to GitHub."""
+    """A bare name should be resolved via the materialyze HF org before falling back to GitHub."""
     model = OldModel(11, source="materialyze")
     serialized_dir = tmp_path / "serialized"
     model.save(serialized_dir)
@@ -132,7 +132,7 @@ def test_load_model_prefers_materialyze_hf_org(tmp_path):
 
 
 def test_load_model_falls_back_to_github_when_hf_missing(tmp_path):
-    """If a bare name is not on the Materialyze HF org, fall through to the GitHub mirror."""
+    """If a bare name is not on the materialyze HF org, fall through to the GitHub mirror."""
     model = OldModel(13, source="github")
     serialized_dir = tmp_path / "serialized"
     model.save(serialized_dir)

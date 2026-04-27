@@ -28,7 +28,7 @@ _HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w\-.]*/[\w\-.]+$")
 
 # Default Hugging Face organization searched when a bare model name is supplied to
 # ``load_model`` (i.e. no "owner/" prefix). Mirrors the official matgl model zoo.
-HF_MATGL_ORG = "Materialyze"
+HF_MATGL_ORG = "materialyze"
 
 
 class IOMixIn:
@@ -141,8 +141,8 @@ class IOMixIn:
                 1. Local filesystem path.
                 2. If the identifier already matches an ``"owner/name"`` pattern, the
                    Hugging Face Hub directly.
-                3. If the identifier is a bare model name, the official ``Materialyze``
-                   Hugging Face org (``Materialyze/<name>``).
+                3. If the identifier is a bare model name, the official ``materialyze``
+                   Hugging Face org (``materialyze/<name>``).
                 4. The legacy matgl pretrained models hosted at
                    ``PRETRAINED_MODELS_BASE_URL`` (with caching).
             **kwargs: Additional kwargs passed to RemoteFile or, when loading from the
@@ -349,8 +349,8 @@ def load_model(path: str | Path, **kwargs):
             repo id in ``"owner/name"`` form. The search order is:
 
             1. Local filesystem path.
-            2. If ``path`` is a bare model name (no ``"/"``), the ``Materialyze`` Hugging Face
-               org (``Materialyze/<name>``). This is the recommended source for official
+            2. If ``path`` is a bare model name (no ``"/"``), the ``materialyze`` Hugging Face
+               org (``materialyze/<name>``). This is the recommended source for official
                matgl models.
             3. The legacy matgl pretrained models hosted at ``PRETRAINED_MODELS_BASE_URL``
                (with caching).
@@ -402,8 +402,8 @@ def _get_file_paths(path: Path, str_path: str | None = None, **kwargs):
             1. Local filesystem path.
             2. If the identifier already matches an ``"owner/name"`` repo id pattern, the
                Hugging Face Hub directly.
-            3. If the identifier is a bare model name, the official ``Materialyze`` Hugging
-               Face org (``Materialyze/<name>``).
+            3. If the identifier is a bare model name, the official ``materialyze`` Hugging
+               Face org (``materialyze/<name>``).
             4. The legacy matgl pretrained models hosted at ``PRETRAINED_MODELS_BASE_URL``
                (with caching).
         str_path (str | None): The original string form of ``path``, preserved so that
@@ -435,7 +435,7 @@ def _get_file_paths(path: Path, str_path: str | None = None, **kwargs):
     hub_only_keys = {"revision", "token", "cache_dir"}
     remote_kwargs = {k: v for k, v in kwargs.items() if k not in hub_only_keys}
 
-    # For a bare model name, prefer the official Materialyze Hugging Face org; fall back
+    # For a bare model name, prefer the official materialyze Hugging Face org; fall back
     # to the legacy GitHub-hosted pretrained_models/ directory if the HF repo is missing.
     hf_err: Exception | None = None
     if "/" not in str_path:
@@ -576,14 +576,14 @@ def _check_ver(cls_, d: dict):
 def get_available_pretrained_models(include_hf: bool = True, include_github: bool = True) -> list[str]:
     """Get the list of pre-trained models available for download via ``load_model``.
 
-    By default this queries both the official ``Materialyze`` Hugging Face org and the
+    By default this queries both the official ``materialyze`` Hugging Face org and the
     legacy GitHub ``pretrained_models/`` directory, returning the de-duplicated union
-    sorted alphabetically. Hugging Face models that live under the ``Materialyze`` org
-    are returned as bare names (i.e. without the ``"Materialyze/"`` prefix) so they can
+    sorted alphabetically. Hugging Face models that live under the ``materialyze`` org
+    are returned as bare names (i.e. without the ``"materialyze/"`` prefix) so they can
     be passed directly to ``load_model``.
 
     Args:
-        include_hf: If True, include models published under the ``Materialyze`` Hugging
+        include_hf: If True, include models published under the ``materialyze`` Hugging
             Face org. Requires network access to ``huggingface.co``.
         include_github: If True, include models hosted in the legacy GitHub
             ``pretrained_models/`` directory. Requires network access to
