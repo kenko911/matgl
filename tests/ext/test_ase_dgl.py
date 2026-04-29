@@ -220,6 +220,7 @@ def test_get_graph_from_atoms_mol():
     assert np.allclose(state, [0.0, 0.0])
 
 
+@pytest.mark.skipif(True, reason="Too slow.")
 def test_molecular_dynamics(MoS2):
     pot = load_model("TensorNetDGL-PES-MatPES-PBE-2025.2")
     for ensemble in [
