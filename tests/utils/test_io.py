@@ -49,7 +49,8 @@ def test_model_versioning():
 def test_get_available_pretrained_models():
     model_names = get_available_pretrained_models()
     assert len(model_names) > 1
-    assert "M3GNet-MP-2021.2.8-PES" in model_names
+    # All names should be bare model names (no "owner/" prefix).
+    assert all("/" not in name for name in model_names)
 
 
 @pytest.mark.skipif(matgl.config.BACKEND != "DGL", reason="Only works with DGL.")
@@ -104,8 +105,8 @@ def test_load_model_falls_back_to_hf_hub(tmp_path):
     assert loaded._init_args["flag"] is True
 
 
-def test_load_model_prefers_materialyze_hf_org(tmp_path):
-    """A bare name should be resolved via the materialyze HF org before falling back to GitHub."""
+def test_load_model_resolves_bare_name_via_materialyze_hf_org(tmp_path):
+    """A bare name should be resolved via the materialyze HF org."""
     model = OldModel(11, source="materialyze")
     serialized_dir = tmp_path / "serialized"
     model.save(serialized_dir)
@@ -117,13 +118,7 @@ def test_load_model_prefers_materialyze_hf_org(tmp_path):
         assert repo_id == f"{matgl_io.HF_MATGL_ORG}/BareModelName"
         return str(serialized_dir / filename)
 
-    def fail_remote(*args, **kwargs):
-        raise AssertionError("RemoteFile should not be called when the HF org lookup succeeds")
-
-    with (
-        patch.object(matgl_io, "hf_hub_download", side_effect=fake_hf_hub_download),
-        patch.object(matgl_io, "RemoteFile", side_effect=fail_remote),
-    ):
+    with patch.object(matgl_io, "hf_hub_download", side_effect=fake_hf_hub_download):
         loaded = load_model("BareModelName")
 
     assert isinstance(loaded, torch.nn.Module)
@@ -131,28 +126,17 @@ def test_load_model_prefers_materialyze_hf_org(tmp_path):
     assert calls == [f"{matgl_io.HF_MATGL_ORG}/BareModelName"] * 3
 
 
-def test_load_model_falls_back_to_github_when_hf_missing(tmp_path):
-    """If a bare name is not on the materialyze HF org, fall through to the GitHub mirror."""
-    model = OldModel(13, source="github")
-    serialized_dir = tmp_path / "serialized"
-    model.save(serialized_dir)
+def test_load_model_raises_when_bare_name_missing_on_hf(tmp_path):
+    """If a bare name is not on the materialyze HF org, loading should fail with a ValueError."""
 
     def fake_hf_hub_download(repo_id, filename, **kwargs):
         raise RuntimeError(f"missing {repo_id}")
 
-    class FakeRemoteFile:
-        def __init__(self, uri, **kwargs):
-            fname = uri.rsplit("/", 1)[-1]
-            self.local_path = serialized_dir / fname
-
     with (
         patch.object(matgl_io, "hf_hub_download", side_effect=fake_hf_hub_download),
-        patch.object(matgl_io, "RemoteFile", FakeRemoteFile),
+        pytest.raises(ValueError, match=r"Bad serialized model or bad model name\."),
     ):
-        loaded = load_model("LegacyOnlyModel")
-
-    assert isinstance(loaded, torch.nn.Module)
-    assert loaded._init_args["source"] == "github"
+        load_model("LegacyOnlyModel")
 
 
 def test_push_to_hub_invokes_hub_api(tmp_path):
