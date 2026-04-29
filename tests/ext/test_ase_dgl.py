@@ -24,7 +24,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
     # M3GNet PES (eV/A3)
     # ============================================================
     s_ase = adaptor.get_atoms(MoS)  # type: ignore
-    ff = load_model("pretrained_models/M3GNet-MP-2021.2.8-PES/")
+    ff = load_model("TensorNetDGL-PES-MatPES-PBE-2025.2")
     ff.calc_hessian = True
 
     calc = PESCalculator(
@@ -145,6 +145,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
     )
 
 
+@pytest.mark.skipif(True, reason="CHGNet models have not been updated.")
 def test_CHGNetCalculator(MoS):
     adaptor = AseAtomsAdaptor()
     s_ase = adaptor.get_atoms(MoS)  # type: ignore
@@ -164,7 +165,7 @@ def test_CHGNetCalculator(MoS):
 def test_PESCalculator_mol(AcAla3NHMe):
     adaptor = AseAtomsAdaptor()
     mol = adaptor.get_atoms(AcAla3NHMe)
-    ff = load_model("pretrained_models/M3GNet-MP-2021.2.8-PES/")
+    ff = load_model("TensorNetDGL-PES-MatPES-PBE-2025.2")
     calc = PESCalculator(potential=ff)
     mol.set_calculator(calc)
     assert isinstance(mol.get_potential_energy(), float)
@@ -173,7 +174,7 @@ def test_PESCalculator_mol(AcAla3NHMe):
 
 
 def test_Relaxer(MoS):
-    pot = load_model("pretrained_models/M3GNet-MP-2021.2.8-PES/")
+    pot = load_model("TensorNetDGL-PES-MatPES-PBE-2025.2")
     r = Relaxer(pot)
     results = r.relax(MoS, traj_file="MoS_relax.traj")
     s = results["final_structure"]
@@ -220,7 +221,7 @@ def test_get_graph_from_atoms_mol():
 
 
 def test_molecular_dynamics(MoS2):
-    pot = load_model("pretrained_models/M3GNet-MP-2021.2.8-PES/")
+    pot = load_model("TensorNetDGL-PES-MatPES-PBE-2025.2")
     for ensemble in [
         "nvt",
         "nve",
