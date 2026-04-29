@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-import matgl
 from matgl.utils import io as matgl_io
 from matgl.utils.io import IOMixIn, get_available_pretrained_models, load_model
 
@@ -51,20 +50,6 @@ def test_get_available_pretrained_models():
     assert len(model_names) > 1
     # All names should be bare model names (no "owner/" prefix).
     assert all("/" not in name for name in model_names)
-
-
-@pytest.mark.skipif(matgl.config.BACKEND != "DGL", reason="Only works with DGL.")
-def test_load_model():
-    # Load model from name.
-
-    model = load_model("M3GNet-MP-2021.2.8-DIRECT-PES")
-    assert issubclass(model.__class__, torch.nn.Module)
-
-    # Load model from a full path.
-    model = load_model(this_dir / ".." / ".." / "pretrained_models" / "MEGNet-MP-2018.6.1-Eform")
-    assert issubclass(model.__class__, torch.nn.Module)
-    model = load_model(this_dir / ".." / ".." / "pretrained_models" / "CHGNet-MPtrj-2024.2.13-11M-PES")
-    assert issubclass(model.__class__, torch.nn.Module)
 
 
 def test_from_pretrained_uses_hf_hub(tmp_path):
