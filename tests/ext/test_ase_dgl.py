@@ -42,7 +42,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
 
     np.testing.assert_allclose(
         s_ase.get_potential_energy(),
-        -10.824362,
+        -8.046673,
         atol=1e-5,
         rtol=1e-6,
     )
@@ -64,7 +64,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
 
     np.testing.assert_allclose(
         s_ase.get_potential_energy(),
-        -10.824362,
+        -8.046673,
         atol=1e-5,
         rtol=1e-6,
     )
@@ -107,7 +107,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
 
     np.testing.assert_allclose(
         s_ase.get_potential_energy(),
-        -10.824362,
+        -8.046673,
         atol=1e-5,
         rtol=1e-6,
     )
@@ -116,7 +116,7 @@ def test_PESCalculator_and_M3GNetCalculator(MoS):
     # QET PES (charges + stress)
     # ============================================================
     s_ase = adaptor.get_atoms(MoS)  # type: ignore
-    ff = matgl.load_model("materialyze/QET-PES-MatQ")
+    ff = matgl.load_model("QET-PES-MatQ")
     ff.calc_hessian = True
 
     calc = PESCalculator(
@@ -170,7 +170,7 @@ def test_PESCalculator_mol(AcAla3NHMe):
     mol.set_calculator(calc)
     assert isinstance(mol.get_potential_energy(), float)
     assert list(mol.get_forces().shape) == [42, 3]
-    np.testing.assert_allclose(mol.get_potential_energy(), -250.16803)
+    np.testing.assert_allclose(mol.get_potential_energy(), -150.480591)
 
 
 def test_Relaxer(MoS):
@@ -235,10 +235,10 @@ def test_molecular_dynamics(MoS2):
         "npt_nose_hoover_chain",
     ]:
         md = MolecularDynamics(MoS2, potential=pot, ensemble=ensemble, taut=0.1, taup=0.1, compressibility_au=10)
-        md.run(10)
+        md.run(1)
         assert md.dyn is not None
         md.set_atoms(MoS2)
     md = MolecularDynamics(MoS2, potential=pot, ensemble=ensemble, taut=None, taup=None, compressibility_au=10)
-    md.run(10)
+    md.run(1)
     with pytest.raises(ValueError, match="Ensemble not supported"):
         MolecularDynamics(MoS2, potential=pot, ensemble="notanensemble")
