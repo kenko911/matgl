@@ -195,14 +195,16 @@ def _build_pair_from_pretrained(repo_id: str) -> tuple[TensorNet, TensorNet]:
     return model_warp, model_pyg
 
 
-def test_warp_pyg_parity_pretrained(MoS):
+@pytest.mark.parametrize("structure_fixture", ["MoS", "LiFePO4", "Li3InCl6"])
+def test_warp_pyg_parity_pretrained(structure_fixture, request):
     """Warp and non-warp TensorNet must produce identical outputs from the same pretrained weights."""
+    structure = request.getfixturevalue(structure_fixture)
     model_warp, model_pyg = _build_pair_from_pretrained("materialyze/TensorNet-PES-MatPES-PBE-2025.2")
 
     from matgl.ext._pymatgen_pyg import Structure2Graph
 
     converter = Structure2Graph(element_types=model_pyg.element_types, cutoff=model_pyg.cutoff)
-    g, lat, _ = converter.get_graph(MoS)
+    g, lat, _ = converter.get_graph(structure)
     g.pbc_offshift = torch.matmul(g.pbc_offset, lat[0])
     g.pos = g.frac_coords @ lat[0]
 
@@ -211,5 +213,5 @@ def test_warp_pyg_parity_pretrained(MoS):
         out_pyg = model_pyg(g=g)
 
     assert torch.allclose(out_warp, out_pyg, atol=1e-5, rtol=1e-5), (
-        f"warp={out_warp.detach().cpu()} vs pyg={out_pyg.detach().cpu()}"
+        f"{structure_fixture}: warp={out_warp.detach().cpu()} vs pyg={out_pyg.detach().cpu()}"
     )
