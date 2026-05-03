@@ -1,4 +1,4 @@
-"""This package implements the layers for different Graph Neural Networks."""
+"""Layers for graph neural networks."""
 
 from __future__ import annotations
 

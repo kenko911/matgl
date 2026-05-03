@@ -1,4 +1,4 @@
-"""Package containing model implementations."""
+"""Graph neural network model implementations."""
 
 from __future__ import annotations
 
