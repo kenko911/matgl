@@ -6,14 +6,20 @@ nav_order: 3
 
 # Change Log
 
-## Unreleased
-- Removed the legacy GitHub `pretrained_models/` download fallback now that Hugging Face
-  is the canonical source for pre-trained matgl models. The `RemoteFile` class and the
-  `PRETRAINED_MODELS_BASE_URL` config constant have been removed, and
-  `get_available_pretrained_models` no longer accepts the `include_hf` / `include_github`
-  arguments (it now always queries the `materialyze` Hugging Face org). **Breaking
-  change** for any code that imported `matgl.utils.io.RemoteFile` or
-  `matgl.config.PRETRAINED_MODELS_BASE_URL` directly.
+## 3.0.0
+- **Message-passing fix.** Corrected the message-passing convention in the PyG and DGL `TensorNet` interaction and
+  embedding blocks: edge messages are now aggregated onto the source (center) node so each atom correctly collects
+  information from its neighbors. Pre-trained TensorNet weights generated under the old convention are no longer
+  numerically valid. (#758, @kenko911)
+- **New pre-trained weights on Hugging Face.** `TensorNet-PES-MatPES-PBE-2025.2` and related potentials have been
+  retrained against the corrected message-passing convention and re-released on the
+  [`materialyze`](https://huggingface.co/materialyze) HF org, which is now the canonical source for all matgl
+  pre-trained models.
+- **Breaking — removed legacy GitHub `pretrained_models/` download fallback.** The `RemoteFile` class and the
+  `PRETRAINED_MODELS_BASE_URL` config constant have been removed, and `get_available_pretrained_models` no longer
+  accepts the `include_hf` / `include_github` arguments (it now always queries the `materialyze` HF org).
+- Consolidated per-backend `tensornet` / `m3gnet` / `megnet` / `qet` test files; backend dispatch is via
+  `matgl.config.BACKEND` with `pytest.skip` guarding backend-specific cases.
 
 ## 2.2.1
 - Updated HuggingFace Repo Id to lowercase "materialyze".

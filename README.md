@@ -28,6 +28,8 @@ Calculator).
 
 Major milestones are summarized below. Please refer to the [changelog] for details.
 
+- v3.0.0 (May 5 2026): Corrected message-passing convention in `TensorNet`. New pre-trained weights re-released on
+  Hugging Face (`materialyze` org), which is now the canonical source for all matgl models.
 - v2.0.0 (Nov 13 2025): [QET] architecture added. PYG backend is now the default.
 - v1.3.0 (Aug 12 2025): Pretrained molecular potentials and PyG framework added.
 - v1.1.0 (May 7 2024): Implementation of [CHGNet] + pre-trained models.
@@ -38,6 +40,16 @@ Major milestones are summarized below. Please refer to the [changelog] for detai
   available.
 - v0.1.0 (Feb 16 2023): Initial implementations of M3GNet and MEGNet architectures have been completed. Expect
   bugs!
+
+## Major update: v3.0.0 (May 2026)
+
+A bug in the `TensorNet` message-passing convention (PyG and DGL) was fixed in v2.2.0: edge messages are now
+aggregated onto the source (center) node so each atom correctly collects information from its neighbors.
+Pre-trained `TensorNet` weights generated under the old convention are no longer numerically valid. New weights —
+including `TensorNet-PES-MatPES-PBE-2025.2` — have been retrained against the corrected convention and uploaded to
+the [`materialyze`](https://huggingface.co/materialyze) Hugging Face org, which is now the canonical (and only)
+source for matgl pre-trained models. The legacy GitHub `pretrained_models/` download fallback (`RemoteFile`,
+`PRETRAINED_MODELS_BASE_URL`) has been removed in this release.
 
 ## Major update: v2.0.0 (Nov 12 2025)
 
