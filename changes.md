@@ -7,14 +7,16 @@ nav_order: 3
 # Change Log
 
 ## 3.0.0
-- **Message-passing fix.** Corrected the message-passing convention in the PyG and DGL `TensorNet` interaction and
-  embedding blocks: edge messages are now aggregated onto the source (center) node so each atom correctly collects
-  information from its neighbors. Pre-trained TensorNet weights generated under the old convention are no longer
-  numerically valid. (#758, @kenko911)
-- **New pre-trained weights on Hugging Face.** `TensorNet-PES-MatPES-PBE-2025.2` and related potentials have been
-  retrained against the corrected message-passing convention and re-released on the
-  [`materialyze`](https://huggingface.co/materialyze) HF org, which is now the canonical source for all matgl
-  pre-trained models.
+- **PyG `M3GNet` and `QET`.** New PyG implementations of `M3GNet` and `QET` join the existing PyG `TensorNet` and
+  `MEGNet`, so all four core architectures now run on the default PyG backend without DGL.
+- **Message-passing fix (TensorNet, M3GNet, QET).** Corrected the message-passing convention in the interaction
+  and embedding blocks of `TensorNet`, `M3GNet`, and `QET` (both PyG and DGL): edge messages are now aggregated
+  onto the source (center) node so each atom correctly collects information from its neighbors. Pre-trained
+  weights generated under the old convention are no longer numerically valid. (#758, @kenko911)
+- **New pre-trained weights on Hugging Face.** `TensorNet-PES-MatPES-PBE-2025.2`, the `M3GNet` and `QET` PyG
+  potentials, and related models have been retrained against the corrected message-passing convention and
+  re-released on the [`materialyze`](https://huggingface.co/materialyze) HF org, which is now the canonical
+  source for all matgl pre-trained models.
 - **Breaking — removed legacy GitHub `pretrained_models/` download fallback.** The `RemoteFile` class and the
   `PRETRAINED_MODELS_BASE_URL` config constant have been removed, and `get_available_pretrained_models` no longer
   accepts the `include_hf` / `include_github` arguments (it now always queries the `materialyze` HF org).
