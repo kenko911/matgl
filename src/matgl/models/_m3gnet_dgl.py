@@ -266,10 +266,16 @@ class M3GNet(MatGLModel):
                 "state_feat": state_feat,
             },
         }
+        edge_dst_atom = g.edges()[1]
+        line_edge_index = torch.stack(list(l_g.edges()), dim=0)
+        n_triple_ij = l_g.ndata["n_triple_ij"]
+        num_bonds = g.num_edges()
         for i in range(self.n_blocks):
             edge_feat = self.three_body_interactions[i](
-                g,
-                l_g,
+                edge_dst_atom,
+                line_edge_index,
+                n_triple_ij,
+                num_bonds,
                 three_body_basis,
                 three_body_cutoff,
                 node_feat,
