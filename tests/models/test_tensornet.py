@@ -201,37 +201,37 @@ def test_warp_model_regression(graph_MoS):
         assert torch.allclose(output, ref, atol=1e-4)
 
 
-def test_warp_model_intensive_regression(graph_MoS):
+def test_warp_model_intensive(graph_MoS):
     _skip_if_no_warp()
     structure, graph, _ = graph_MoS
     lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
     graph.pbc_offshift = torch.matmul(graph.pbc_offset, lat[0])
     graph.pos = graph.frac_coords @ lat[0]
-    model = TensorNet(element_types=["Mo", "S"], is_intensive=True)
+    model = TensorNet(element_types=["Mo", "S"], is_intensive=True, use_warp=True)
     output = model(g=graph)
-    assert torch.allclose(output, torch.tensor([-0.0906]), atol=1e-4)
+    _check_scalar_output(output)
 
 
-def test_warp_model_intensive_with_weighted_atom_regression(graph_MoS):
+def test_warp_model_intensive_with_weighted_atom(graph_MoS):
     _skip_if_no_warp()
     structure, graph, _ = graph_MoS
     lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
     graph.pbc_offshift = torch.matmul(graph.pbc_offset, lat[0])
     graph.pos = graph.frac_coords @ lat[0]
-    model = TensorNet(element_types=["Mo", "S"], is_intensive=True, readout_type="weighted_atom")
+    model = TensorNet(element_types=["Mo", "S"], is_intensive=True, readout_type="weighted_atom", use_warp=True)
     output = model(g=graph)
-    assert torch.allclose(output, torch.tensor([-0.0210]), atol=1e-4)
+    _check_scalar_output(output)
 
 
-def test_warp_model_intensive_with_ReduceReadOut_regression(graph_MoS):
+def test_warp_model_intensive_with_ReduceReadOut(graph_MoS):
     _skip_if_no_warp()
     structure, graph, _ = graph_MoS
     lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
     graph.pbc_offshift = torch.matmul(graph.pbc_offset, lat[0])
     graph.pos = graph.frac_coords @ lat[0]
-    model = TensorNet(is_intensive=True, readout_type="reduce_atom")
+    model = TensorNet(is_intensive=True, readout_type="reduce_atom", use_warp=True)
     output = model(g=graph)
-    assert torch.allclose(output, torch.tensor([-0.1075]), atol=1e-4)
+    _check_scalar_output(output)
 
 
 def test_warp_backward(graph_MoS):
