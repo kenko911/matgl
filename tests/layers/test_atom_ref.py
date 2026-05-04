@@ -15,7 +15,7 @@ if BACKEND == "DGL":
 elif BACKEND == "PYG":
     from torch_geometric.data import Batch
 
-    from matgl.layers._atom_ref_pyg import AtomRefPyG as AtomRef  # type: ignore[assignment]
+    from matgl.layers._atom_ref_pyg import AtomRef
 else:
     pytest.skip(f"Unsupported backend: {BACKEND}", allow_module_level=True)
 

@@ -16,7 +16,7 @@ if BACKEND == "DGL":
 elif BACKEND == "PYG":
     from torch_geometric.data import Data
 
-    from matgl.layers._zbl_pyg import NuclearRepulsionPyG as NuclearRepulsion  # type: ignore[assignment]
+    from matgl.layers._zbl_pyg import NuclearRepulsion
 else:
     pytest.skip(f"Unsupported backend: {BACKEND}", allow_module_level=True)
 

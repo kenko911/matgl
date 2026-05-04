@@ -10,8 +10,8 @@ from torch.autograd import grad
 from torch_geometric.data import Batch, Data
 
 import matgl
-from matgl.layers._atom_ref_pyg import AtomRefPyG
-from matgl.layers._zbl_pyg import NuclearRepulsionPyG
+from matgl.layers._atom_ref_pyg import AtomRef
+from matgl.layers._zbl_pyg import NuclearRepulsion
 from matgl.utils.io import IOMixIn
 
 if TYPE_CHECKING:
@@ -61,19 +61,19 @@ class Potential(nn.Module, IOMixIn):
         self.calc_stresses = calc_stresses
         self.calc_hessian = calc_hessian
         self.calc_magmom = calc_magmom
-        self.element_refs: AtomRefPyG | None
+        self.element_refs: AtomRef | None
         self.debug_mode = debug_mode
         self.calc_repuls = calc_repuls
         self.calc_charge = calc_charge
 
         if calc_repuls:
             cutoff: float = self.model.cutoff  # type: ignore[assignment]
-            self.repuls = NuclearRepulsionPyG(cutoff, trainable=zbl_trainable)
+            self.repuls = NuclearRepulsion(cutoff, trainable=zbl_trainable)
 
         if element_refs is not None:
             if not isinstance(element_refs, torch.Tensor):
                 element_refs = torch.tensor(element_refs, dtype=matgl.float_th)
-            self.element_refs = AtomRefPyG(property_offset=element_refs)
+            self.element_refs = AtomRef(property_offset=element_refs)
         else:
             self.element_refs = None
         # for backward compatibility
