@@ -8,13 +8,45 @@ import torch
 
 import matgl
 
-if matgl.config.BACKEND != "DGL":
-    pytest.skip("Skipping DGL tests", allow_module_level=True)
-from matgl.models import M3GNet
+BACKEND = matgl.config.BACKEND
+
+if BACKEND == "DGL":
+    from matgl.graph._compute_dgl import compute_pair_vector_and_distance
+elif BACKEND == "PYG":
+    from matgl.graph._compute_pyg import compute_pair_vector_and_distance  # type: ignore[assignment]
+else:
+    pytest.skip(f"Unsupported backend: {BACKEND}", allow_module_level=True)
+
+from matgl.models import M3GNet  # noqa: E402
+
+
+def _device_of(graph):
+    if BACKEND == "DGL":
+        return graph.device
+    return graph.pos.device
+
+
+def _prep_graph(graph, structure):
+    """Attach pos / pbc_offshift / bond_{vec,dist} for the active backend."""
+    lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th, device=_device_of(graph))
+    if BACKEND == "DGL":
+        graph.edata["pbc_offshift"] = torch.matmul(graph.edata["pbc_offset"], lat[0])
+        graph.ndata["pos"] = graph.ndata["frac_coords"] @ lat[0]
+        bond_vec, bond_dist = compute_pair_vector_and_distance(graph)
+        graph.edata["bond_vec"] = bond_vec
+        graph.edata["bond_dist"] = bond_dist
+    else:
+        graph.pbc_offshift = torch.matmul(graph.pbc_offset, lat[0])
+        graph.pos = graph.frac_coords @ lat[0]
+        bond_vec, bond_dist = compute_pair_vector_and_distance(graph.pos, graph.edge_index, graph.pbc_offshift)
+        graph.bond_vec = bond_vec
+        graph.bond_dist = bond_dist
+    return graph
 
 
 def test_model(graph_MoS):
-    _, graph, _ = graph_MoS
+    structure, graph, _ = graph_MoS
+    graph = _prep_graph(graph, structure)
     for act in ["swish", "tanh", "sigmoid", "softplus2", "softexp"]:
         model = M3GNet(is_intensive=False, activation_type=act)
         output = model(g=graph)
@@ -35,58 +67,70 @@ def test_exceptions():
 
 def test_model_intensive(graph_MoS):
     structure, graph, _ = graph_MoS
-    lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
-    graph.edata["pbc_offshift"] = torch.matmul(graph.edata["pbc_offset"], lat[0])
-    graph.ndata["pos"] = graph.ndata["frac_coords"] @ lat[0]
+    graph = _prep_graph(graph, structure)
     model = M3GNet(element_types=["Mo", "S"], is_intensive=True)
     output = model(g=graph)
     assert torch.numel(output) == 1
 
 
-def test_model_intensive_reduced_atom(graph_MoS):
+def test_model_intensive_reduce_atom(graph_MoS):
     structure, graph, _ = graph_MoS
-    lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
-    graph.edata["pbc_offshift"] = torch.matmul(graph.edata["pbc_offset"], lat[0])
-    graph.ndata["pos"] = graph.ndata["frac_coords"] @ lat[0]
-    model = M3GNet(element_types=["Mo", "S"], is_intensive=True, readout_type="reduced_atom")
+    graph = _prep_graph(graph, structure)
+    model = M3GNet(element_types=["Mo", "S"], is_intensive=True, readout_type="reduce_atom")
     output = model(g=graph)
     assert torch.numel(output) == 1
 
 
 def test_model_intensive_with_classification(graph_MoS):
     structure, graph, _ = graph_MoS
-    lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
-    graph.edata["pbc_offshift"] = torch.matmul(graph.edata["pbc_offset"], lat[0])
-    graph.ndata["pos"] = graph.ndata["frac_coords"] @ lat[0]
-    model = M3GNet(
-        element_types=["Mo", "S"],
-        is_intensive=True,
-        task_type="classification",
-    )
+    graph = _prep_graph(graph, structure)
+    model = M3GNet(element_types=["Mo", "S"], is_intensive=True, task_type="classification")
     output = model(g=graph)
     assert torch.numel(output) == 1
 
 
 def test_model_intensive_set2set_classification(graph_MoS):
     structure, graph, _ = graph_MoS
-    lat = torch.tensor(np.array([structure.lattice.matrix]), dtype=matgl.float_th)
-    graph.edata["pbc_offshift"] = torch.matmul(graph.edata["pbc_offset"], lat[0])
-    graph.ndata["pos"] = graph.ndata["frac_coords"] @ lat[0]
-    model = M3GNet(element_types=["Mo", "S"], is_intensive=True, task_type="classification", readout_type="set2set")
+    graph = _prep_graph(graph, structure)
+    kwargs = {
+        "element_types": ["Mo", "S"],
+        "is_intensive": True,
+        "task_type": "classification",
+        "readout_type": "set2set",
+    }
+    if BACKEND == "PYG":
+        kwargs["niters_set2set"] = 2
+        kwargs["nlayers_set2set"] = 1
+    model = M3GNet(**kwargs)
     output = model(g=graph)
     assert torch.numel(output) == 1
 
 
 def test_predict_structure(graph_MoS):
     structure, _, _ = graph_MoS
-    model_intensive = M3GNet(element_types=["Mo", "S"], is_intensive=True)
-    model_extensive = M3GNet(is_intensive=False)
-    for model in [model_extensive, model_intensive]:
+    if BACKEND == "DGL":
+        models = [M3GNet(is_intensive=False), M3GNet(element_types=["Mo", "S"], is_intensive=True)]
+    else:
+        models = [M3GNet(element_types=["Mo", "S"], is_intensive=False)]
+    for model in models:
         output_final = model.predict_structure(structure)
         assert torch.numel(output_final) == 1
 
 
+def test_save_load(tmp_path):
+    model = M3GNet(element_types=("Mo", "S"), is_intensive=True)
+    cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        model.save(".")
+        M3GNet.load(".")
+    finally:
+        os.chdir(cwd)
+
+
 def test_featurize_structure(graph_MoS):
+    if BACKEND != "DGL":
+        pytest.skip("predict_structure(return_features=True) feature shape contract is only validated for DGL.")
     structure, _, _ = graph_MoS
     model_intensive = M3GNet(element_types=["Mo", "S"], is_intensive=True)
     model_extensive = M3GNet(is_intensive=False)
