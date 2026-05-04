@@ -22,6 +22,22 @@ logger = logging.getLogger(__file__)
 # Files that comprise a serialized matgl model on disk and on Hugging Face Hub.
 _MODEL_FILES = ("model.pt", "state.pt", "model.json")
 
+# Private backend-split modules under these prefixes always reload through their
+# public package, so the active ``MATGL_BACKEND`` picks the right implementation.
+_PUBLIC_PACKAGE_PREFIXES: tuple[str, ...] = ("matgl.models.", "matgl.apps._pes")
+
+
+def _resolve_module(modname: str) -> str:
+    """Map a private ``matgl.models._*`` / ``matgl.apps._pes_*`` ``@module`` string
+    to its public package (``matgl.models`` / ``matgl.apps.pes``).
+    """
+    if modname.startswith("matgl.models._"):
+        return "matgl.models"
+    if modname.startswith("matgl.apps._pes"):
+        return "matgl.apps.pes"
+    return modname
+
+
 # Loose validation pattern for a Hugging Face repo_id ("owner/name" or "owner/name/subfolder"-like).
 _HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w\-.]*/[\w\-.]+$")
 
@@ -161,10 +177,8 @@ class IOMixIn:
         # Deserialize any args that are IOMixIn subclasses.
         for k, v in d.items():
             if isinstance(v, dict) and "@class" in v and "@module" in v:
-                modname: str = v["@module"]
+                modname = _resolve_module(v["@module"])
                 classname = v["@class"]
-                if "._" in modname:
-                    modname = ".".join(modname.split(".")[:-1])
                 mod = __import__(modname, globals(), locals(), [classname], 0)
                 cls_ = getattr(mod, classname)
                 _check_ver(cls_, v)  # Check version of any subclasses too.
@@ -313,7 +327,7 @@ def load_model(path: str | Path, **kwargs):
         fpaths = _get_file_paths(path, str_path=str_path, **kwargs)
         with open(fpaths["model.json"]) as f:
             d = json.load(f)
-            modname = d["@module"]
+            modname = _resolve_module(d["@module"])
             classname = d["@class"]
             mod = __import__(modname, globals(), locals(), [classname], 0)
             cls_ = getattr(mod, classname)
