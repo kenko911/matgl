@@ -44,9 +44,10 @@ Major milestones are summarized below. Please refer to the [changelog] for detai
 
 ## Major update: v3.0.0 (May 2026)
 
-`M3GNet` and `QET` now have native PyG implementations alongside `TensorNet` and `MEGNet`, so all four core
-architectures run on the default PyG backend without DGL. **PyG is now the recommended and default backend for
-`TensorNet`, `QET`, and `M3GNet`.** The DGL implementations are retained for legacy purposes only and will not be
+MatGL has been progressively moving away from the Deep Graph Library (DGL) framework, which is no longer actively
+maintained, to PyTorch Geometric (PyG). PyG became the default backend in v2.0.0, and as of v3.0.0 `TensorNet`,
+`M3GNet`, `QET`, and `MEGNet` all have native PyG implementations. **PyG is now the recommended and default
+backend for these models.** DGL is retained only for legacy use (e.g., `CHGNet`, `SO3Net`) and will not be
 maintained going forward.
 
 A bug in the message-passing convention of `TensorNet`, `M3GNet`, and `QET` (both PyG and DGL) has been corrected:
@@ -58,17 +59,8 @@ Face org, which is now the canonical (and only) source for matgl pre-trained mod
 `pretrained_models/` download fallback (`RemoteFile`, `PRETRAINED_MODELS_BASE_URL`) has been removed in this
 release.
 
-## Major update: v2.0.0 (Nov 12 2025)
-
-We are in the process of moving away from the Deep Graph Library (DGL) framework to Pytorch Geometric (PyG) or even a
-pure PyTorch framework. This is motivated by the fact that DGL is no longer actively maintained. For now, both PYG and DGL
-models are available.
-
-From v2.0.0, MatGL will default to a PyG backend, and DGL is no longer a required dependency. As of v3.0.0,
-`TensorNet`, `M3GNet`, `QET`, and `MEGNet` all have native PyG implementations and PyG is the recommended backend;
-DGL is retained only for legacy use (e.g., `CHGNet`, `SO3Net`) and will not be maintained going forward. To use
-the remaining DGL-based models, you will need to install the DGL dependencies manually. This typically takes
-about 10 minutes, depending on the speed of downloading the required GPU packages:
+To use the remaining DGL-based models, you will need to install the DGL dependencies manually. This typically
+takes about 10 minutes, depending on the speed of downloading the required GPU packages:
 
 ```bash
 pip install "numpy<2"
