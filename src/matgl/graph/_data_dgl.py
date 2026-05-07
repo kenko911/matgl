@@ -118,14 +118,12 @@ def MGLDataLoader(
     if collate_fn is None:
         if "forces" not in train_data.dataset.labels:
             collate_fn = collate_fn_graph
+        elif "stresses" not in train_data.dataset.labels:
+            collate_fn = partial(collate_fn_pes, include_stress=False)
+        elif "magmoms" not in train_data.dataset.labels:
+            collate_fn = collate_fn_pes
         else:
-            if "stresses" not in train_data.dataset.labels:
-                collate_fn = partial(collate_fn_pes, include_stress=False)
-            else:
-                if "magmoms" not in train_data.dataset.labels:
-                    collate_fn = collate_fn_pes
-                else:
-                    collate_fn = partial(collate_fn_pes, include_stress=True, include_magmom=True)
+            collate_fn = partial(collate_fn_pes, include_stress=True, include_magmom=True)
 
     train_loader = GraphDataLoader(train_data, shuffle=True, collate_fn=collate_fn, **kwargs)
     val_loader = GraphDataLoader(val_data, shuffle=False, collate_fn=collate_fn, **kwargs)

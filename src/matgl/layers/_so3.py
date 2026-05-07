@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 import matgl
 from matgl.layers import MLP
@@ -176,8 +176,7 @@ class RealSphericalHarmonics(nn.Module):
 
         Pi = torch.sum(zk * cPi, dim=-1)  # batch x L x M
         Pi_lm = Pi[:, lidx, abs(midx)]
-        sphharm = torch.sqrt((2 * flidx + 1) / (2 * math.pi)) * Pi_lm * ABm
-        return sphharm
+        return torch.sqrt((2 * flidx + 1) / (2 * math.pi)) * Pi_lm * ABm
 
 
 def scalar2rsh(x: torch.Tensor, lmax: int) -> torch.Tensor:
@@ -190,7 +189,7 @@ def scalar2rsh(x: torch.Tensor, lmax: int) -> torch.Tensor:
     Returns:
         zero-padded tensor to shape [N, (lmax+1)^2, *].
     """
-    y = torch.cat(
+    return torch.cat(
         [
             x,
             torch.zeros(
@@ -201,7 +200,6 @@ def scalar2rsh(x: torch.Tensor, lmax: int) -> torch.Tensor:
         ],
         dim=1,
     )
-    return y
 
 
 class SO3TensorProduct(nn.Module):
@@ -253,8 +251,7 @@ class SO3TensorProduct(nn.Module):
         x1 = x1[:, idx_in_1, :]
         x2 = x2[:, idx_in_2, :]
         y = x1 * x2 * clebsch_gordan[None, :, None]
-        y = scatter_add(y, idx_out, dim_size=int((self.lmax + 1) ** 2), dim=1)
-        return y
+        return scatter_add(y, idx_out, dim_size=int((self.lmax + 1) ** 2), dim=1)
 
 
 class SO3Convolution(nn.Module):
@@ -312,8 +309,7 @@ class SO3Convolution(nn.Module):
         Wij = self.filternet(radial_ij) * cutoff_ij
         Wij = torch.reshape(Wij, (-1, self.lmax + 1, self.n_atom_basis))
         Widx = torch.as_tensor(self.Widx)  # type: ignore[assignment]
-        Wij = Wij[:, Widx]
-        return Wij
+        return Wij[:, Widx]
 
     def forward(
         self,
@@ -347,8 +343,7 @@ class SO3Convolution(nn.Module):
         Wij = self._compute_radial_filter(radial_ij, cutoff_ij)
         v = Wij * dir_ij[:, idx_in_1, None] * clebsch_gordan[None, :, None] * xj
         yij = scatter_add(v, idx_out, dim_size=int((self.lmax + 1) ** 2), dim=1)
-        y = scatter_add(yij, idx_i, dim_size=x.shape[0])
-        return y
+        return scatter_add(yij, idx_i, dim_size=x.shape[0])
 
 
 class SO3ParametricGatedNonlinearity(nn.Module):
@@ -379,8 +374,7 @@ class SO3ParametricGatedNonlinearity(nn.Module):
         s0 = x[:, 0, :]
         h = self.scaling(s0).reshape(-1, self.lmax + 1, self.n_in)
         h = h[:, self.lidx]
-        y = x * torch.sigmoid(h)
-        return y
+        return x * torch.sigmoid(h)
 
 
 class SO3GatedNonlinearity(nn.Module):
@@ -401,5 +395,4 @@ class SO3GatedNonlinearity(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         s0 = x[:, 0, :]
-        y = x * torch.sigmoid(s0[:, None, :])
-        return y
+        return x * torch.sigmoid(s0[:, None, :])
