@@ -6,6 +6,23 @@ nav_order: 3
 
 # Change Log
 
+## 3.1.0
+- New `matgl.utils.callbacks.PredictionLogger` Lightning callback for capturing per-epoch energy and per-atom force
+  predictions, ground truth, and errors during `PotentialLightningModule` training. Pairs with
+  `add_sample_indices(dataset)` to keep `(n_epochs, n_samples)` log columns in a stable per-sample order across
+  shuffled training epochs. The callback persists the cumulative log to disk every epoch end so it survives a
+  walltime cut. (#775)
+- `PredictionLogger` also logs stress and per-atom charge whenever the wrapped potential computes them
+  (`model.calc_stresses` / `model.calc_charge`); pass `log_stress=False` or `log_charge=False` to opt out. New keys
+  in the saved payload: `{train,val}_stress_{preds,labels,errors}` shape `(n_epochs, n_samples, 3, 3)` and
+  `{train,val}_charge_{preds,labels,errors}` shape `(n_epochs, n_atoms)`. (#777)
+- Internal: merged `matgl.utils._training_dgl` and `matgl.utils._training_pyg` into a single
+  `matgl.utils.training` module that branches on `matgl.config.BACKEND` only inside the few methods that touch
+  backend-specific graph attributes (`forward`, `step`). Removes ~900 lines of duplication and keeps the
+  energy/force/stress/loss scaffolding in one place. The public surface (`matgl.utils.training.ModelLightningModule`,
+  `PotentialLightningModule`, `xavier_init`) is unchanged; direct imports from `matgl.utils._training_dgl`
+  / `_training_pyg` no longer resolve and should switch to `matgl.utils.training`. (#776)
+
 ## 3.0.1
 - PyG charge-training parity for `QET`. `PotentialLightningModule` now accepts `charge_weight` and adds a per-atom
   charge loss term (`Charge_MAE` / `Charge_RMSE`) on top of energy/force/stress; `Potential.forward` (PyG) takes
