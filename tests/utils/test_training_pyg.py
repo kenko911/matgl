@@ -172,6 +172,134 @@ class TestModelTrainer:
             pass
 
 
+def test_prediction_logger_train_and_val(LiFePO4, BaNiO3, tmp_path):
+    """PredictionLogger captures per-epoch train + val preds in a stable per-sample order."""
+    from matgl.utils.callbacks import PredictionLogger, add_sample_indices
+
+    torch.manual_seed(0)
+    structures = [LiFePO4, BaNiO3] * 4
+    energies = [-2.0, -3.0] * 4
+    forces = [np.zeros((len(s), 3)).tolist() for s in structures]
+    stresses = [np.zeros((3, 3)).tolist()] * len(structures)
+    element_types = get_element_list([LiFePO4, BaNiO3])
+    converter = Structure2Graph(element_types=element_types, cutoff=5.0)
+    dataset = MGLDataset(
+        structures=structures,
+        converter=converter,
+        labels={"energies": energies, "forces": forces, "stresses": stresses},
+        save_cache=False,
+    )
+    train_data, val_data, _test_data = split_dataset(
+        dataset,
+        frac_list=[0.5, 0.5, 0.0],
+        shuffle=True,
+        random_state=42,
+    )
+    add_sample_indices(train_data)
+    add_sample_indices(val_data)
+
+    train_loader, val_loader = MGLDataLoader(
+        train_data=train_data,
+        val_data=val_data,
+        collate_fn=collate_fn_pes,
+        batch_size=2,
+        num_workers=0,
+        generator=torch.Generator(device=device),
+    )
+    n_train = len(train_data)
+    n_val = len(val_data)
+    n_train_atoms = sum(train_data[i][0].num_nodes for i in range(n_train))
+    n_val_atoms = sum(val_data[i][0].num_nodes for i in range(n_val))
+
+    model = TensorNet(element_types=element_types, is_intensive=False, use_warp=False)
+    lit_model = PotentialLightningModule(model=model, stress_weight=0.0, loss="mse_loss")
+    log_path = tmp_path / "predictions.pt"
+    logger_cb = PredictionLogger(save_path=log_path, log_train=True, log_validation=True)
+    n_epochs = 3
+    trainer = pl.Trainer(
+        max_epochs=n_epochs,
+        accelerator=device,
+        inference_mode=False,
+        num_sanity_val_steps=0,
+        enable_checkpointing=False,
+        logger=False,
+        callbacks=[logger_cb],
+    )
+    trainer.fit(model=lit_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+    log = logger_cb.predictions
+    assert log["train_energy_preds"].shape == (n_epochs, n_train)
+    assert log["train_energy_labels"].shape == (n_train,)
+    assert log["train_force_preds"].shape == (n_epochs, n_train_atoms, 3)
+    assert log["train_force_labels"].shape == (n_train_atoms, 3)
+    assert log["val_energy_preds"].shape == (n_epochs, n_val)
+    assert log["val_force_preds"].shape == (n_epochs, n_val_atoms, 3)
+    # Errors are preds - labels.
+    assert torch.allclose(
+        log["train_energy_errors"],
+        log["train_energy_preds"] - log["train_energy_labels"].unsqueeze(0),
+    )
+    # Ground-truth forces in the loaders were all zero.
+    assert torch.allclose(log["train_force_labels"], torch.zeros(n_train_atoms, 3))
+
+    assert log_path.exists()
+    on_disk = torch.load(log_path, weights_only=True)
+    assert torch.equal(on_disk["train_energy_preds"], log["train_energy_preds"])
+    assert torch.equal(on_disk["val_energy_preds"], log["val_energy_preds"])
+
+    try:
+        shutil.rmtree("lightning_logs")
+    except FileNotFoundError:
+        pass
+
+
+def test_prediction_logger_requires_indices(LiFePO4, BaNiO3):
+    """PredictionLogger raises a clear error when add_sample_indices wasn't called."""
+    from matgl.utils.callbacks import PredictionLogger
+
+    torch.manual_seed(0)
+    structures = [LiFePO4, BaNiO3] * 2
+    energies = [-2.0, -3.0] * 2
+    forces = [np.zeros((len(s), 3)).tolist() for s in structures]
+    stresses = [np.zeros((3, 3)).tolist()] * len(structures)
+    element_types = get_element_list([LiFePO4, BaNiO3])
+    converter = Structure2Graph(element_types=element_types, cutoff=5.0)
+    dataset = MGLDataset(
+        structures=structures,
+        converter=converter,
+        labels={"energies": energies, "forces": forces, "stresses": stresses},
+        save_cache=False,
+    )
+    train_data, val_data, _ = split_dataset(dataset, frac_list=[0.5, 0.5, 0.0], shuffle=True, random_state=42)
+    train_loader, val_loader = MGLDataLoader(
+        train_data=train_data,
+        val_data=val_data,
+        collate_fn=collate_fn_pes,
+        batch_size=2,
+        num_workers=0,
+        generator=torch.Generator(device=device),
+    )
+    model = TensorNet(element_types=element_types, is_intensive=False, use_warp=False)
+    lit_model = PotentialLightningModule(model=model, stress_weight=0.0, loss="mse_loss")
+    logger_cb = PredictionLogger()
+    trainer = pl.Trainer(
+        max_epochs=1,
+        accelerator=device,
+        inference_mode=False,
+        num_sanity_val_steps=0,
+        enable_checkpointing=False,
+        logger=False,
+        callbacks=[logger_cb],
+    )
+    with pytest.raises(RuntimeError, match="add_sample_indices"):
+        trainer.fit(model=lit_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+    try:
+        shutil.rmtree("lightning_logs")
+    except FileNotFoundError:
+        pass
+
+
 def _make_efs_batch():
     """Tiny synthetic (preds, labels) tuple usable by PotentialLightningModule.loss_fn.
 

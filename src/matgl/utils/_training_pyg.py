@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class MatglLightningModuleMixin:
     """Mix-in class implementing common functions for training."""
 
-    def training_step(self, batch: tuple, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: tuple, batch_idx: int) -> Any:
         """Training step.
 
         Args:
@@ -50,7 +50,7 @@ class MatglLightningModuleMixin:
         sch = self.lr_schedulers()  # type: ignore[attr-defined]
         sch.step()
 
-    def validation_step(self, batch: tuple, batch_idx: int) -> torch.Tensor:
+    def validation_step(self, batch: tuple, batch_idx: int) -> Any:
         """Validation step.
 
         Args:
@@ -379,6 +379,10 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         self.sync_dist = sync_dist
         self.allow_missing_labels = allow_missing_labels
         self.magmom_target = magmom_target
+        self._last_preds: tuple[torch.Tensor, ...] | None = None
+        self._last_labels: tuple[torch.Tensor, ...] | None = None
+        self._last_indices: torch.Tensor | None = None
+        self._last_num_atoms: torch.Tensor | None = None
         self.save_hyperparameters(ignore=["model"])
 
     def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
@@ -472,7 +476,55 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         )
         batch_size = preds[0].numel()
 
+        self._last_preds = preds
+        self._last_labels = labels
+        self._last_num_atoms = num_atoms
+        self._last_indices = getattr(g, "sample_idx", None)
+
         return results, batch_size
+
+    def training_step(self, batch: tuple, batch_idx: int) -> dict[str, Any]:
+        """Training step that exposes per-sample preds and labels for callbacks.
+
+        Args:
+            batch: Data batch.
+            batch_idx: Batch index.
+
+        Returns:
+            Dict with ``loss`` (used by Lightning for backprop) plus the raw ``preds``,
+            ``labels`` tuples and per-sample ``indices`` / ``num_atoms`` so that callbacks
+            such as :class:`matgl.utils.callbacks.PredictionLogger` can place predictions in
+            a stable per-sample order across shuffled epochs.
+        """
+        loss = super().training_step(batch, batch_idx)
+        return {
+            "loss": loss,
+            "preds": self._last_preds,
+            "labels": self._last_labels,
+            "indices": self._last_indices,
+            "num_atoms": self._last_num_atoms,
+        }
+
+    def validation_step(self, batch: tuple, batch_idx: int) -> dict[str, Any]:
+        """Validation step that exposes per-sample preds and labels for callbacks.
+
+        Args:
+            batch: Data batch.
+            batch_idx: Batch index.
+
+        Returns:
+            Dict with ``loss`` plus the raw ``preds``, ``labels`` tuples and per-sample
+            ``indices`` / ``num_atoms`` (the latter only present when the dataset has been
+            stamped with :func:`matgl.utils.callbacks.add_sample_indices`).
+        """
+        loss = super().validation_step(batch, batch_idx)
+        return {
+            "loss": loss,
+            "preds": self._last_preds,
+            "labels": self._last_labels,
+            "indices": self._last_indices,
+            "num_atoms": self._last_num_atoms,
+        }
 
     def loss_fn(
         self,
