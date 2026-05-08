@@ -13,6 +13,7 @@ import math
 from typing import TYPE_CHECKING, Any, Literal
 
 import lightning as pl
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torchmetrics
@@ -26,7 +27,10 @@ else:
     from matgl.apps._pes_pyg import Potential  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    import numpy as np
+    from collections.abc import Iterable, Sequence
+
+    from numpy.typing import ArrayLike
+    from pymatgen.core import Structure
     from torch.optim import Optimizer
     from torch.optim.lr_scheduler import LRScheduler
 
@@ -656,6 +660,100 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
             "Magmom_RMSE": m_rmse,
             "Charge_RMSE": q_rmse,
         }
+
+
+def fit_element_refs(
+    structures: Iterable[Structure],
+    energies: ArrayLike,
+    element_types: Sequence[str],
+    *,
+    rcond: float | None = None,
+) -> np.ndarray:
+    r"""Fit per-element energy offsets via linear regression.
+
+    Solves the least-squares problem
+
+    .. math::
+
+        E_i \approx \sum_{Z \in S} \mu_Z \, N_{i,Z}
+
+    where :math:`E_i` is the total energy of structure :math:`i`,
+    :math:`N_{i,Z}` is the count of element :math:`Z` in that structure,
+    and :math:`\mu_Z` is the per-element offset returned in the same
+    order as ``element_types``. The result is shaped to drop straight
+    into :class:`PotentialLightningModule` or
+    :class:`matgl.apps.pes.Potential` as ``element_refs``.
+
+    Subtracting these offsets from the targets removes the (usually
+    dominant) constant-per-element contribution from the loss so the
+    model only has to learn the relative-energy surface. This stabilises
+    training when the absolute energy scale (~tens of eV per atom) is
+    large compared to the residual variation across a chemically
+    homogeneous training set.
+
+    Args:
+        structures: Iterable of pymatgen ``Structure`` (or ``Molecule``)
+            objects. Composition is read via ``site.specie.symbol``.
+        energies: Total potential energies, one per structure, in any
+            unit consistent with downstream training (usually eV).
+        element_types: Element ordering used by the model — typically
+            the value of ``model.element_types`` or what
+            ``matgl.ext.pymatgen.get_element_list`` returns. The output
+            offset vector is in this order.
+        rcond: Forwarded to ``numpy.linalg.lstsq``. ``None`` (default)
+            uses NumPy's current default cutoff for small singular
+            values; pass ``-1`` to retain old behaviour, or a float to
+            override.
+
+    Returns:
+        ``np.ndarray`` of shape ``(len(element_types),)`` with the fitted
+        per-element offsets, dtype ``float64``.
+
+    Raises:
+        ValueError: If ``structures`` and ``energies`` have different
+            lengths, or if a structure contains an element not listed in
+            ``element_types``.
+
+    Note:
+        For inputs already in graph form (e.g. an
+        :class:`~matgl.graph._data_pyg.MGLDataset` of PyG ``Data``
+        objects), :meth:`matgl.layers.AtomRef.fit` provides the same
+        regression directly on the layer.
+
+    Example:
+        >>> from matgl.ext.pymatgen import get_element_list
+        >>> elements = get_element_list(structures)
+        >>> refs = fit_element_refs(structures, energies, elements)
+        >>> module = PotentialLightningModule(model=model, element_refs=refs)
+    """
+    element_types = tuple(element_types)
+    if not element_types:
+        raise ValueError("element_types must be non-empty.")
+
+    z_to_col = {sym: i for i, sym in enumerate(element_types)}
+    structures_list = list(structures)
+    energies_arr = np.asarray(energies, dtype=np.float64).reshape(-1)
+
+    if len(structures_list) != energies_arr.shape[0]:
+        raise ValueError(
+            f"len(structures)={len(structures_list)} does not match len(energies)={energies_arr.shape[0]}."
+        )
+    if not structures_list:
+        raise ValueError("structures must be non-empty.")
+
+    counts = np.zeros((len(structures_list), len(element_types)), dtype=np.float64)
+    for i, struct in enumerate(structures_list):
+        for site in struct:
+            sym = site.specie.symbol
+            col = z_to_col.get(sym)
+            if col is None:
+                raise ValueError(
+                    f"Structure {i} contains element {sym!r} which is not in element_types={element_types}."
+                )
+            counts[i, col] += 1.0
+
+    refs, *_ = np.linalg.lstsq(counts, energies_arr, rcond=rcond)
+    return refs
 
 
 def xavier_init(model: nn.Module, gain: float = 1.0, distribution: Literal["uniform", "normal"] = "uniform") -> None:
