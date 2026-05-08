@@ -455,32 +455,26 @@ class PotentialLightningModule(MatglLightningModuleMixin, pl.LightningModule):
         labels: tuple
 
         torch.set_grad_enabled(True)
+        # Batch shape is fully determined by ``include_line_graph``:
+        #   line graph: (g, lat, l_g, state_attr, energies, forces, stresses, [extra])
+        #   otherwise:  (g, lat,      state_attr, energies, forces, stresses, [extra])
+        # where the trailing optional ``extra`` is magmoms (calc_magmom) or
+        # charges (calc_charge); ``forward`` mirrors the optional with an
+        # extra return slot. ``preds`` is just the forward output with the
+        # hessian (index 3) dropped, then a ``squeeze`` on the charge slot
+        # to match the legacy shape contract.
         if self.include_line_graph:
-            if self.model.calc_magmom:
-                g, lat, l_g, state_attr, energies, forces, stresses, magmoms = batch
-                e, f, s, _, m = self(g=g, lat=lat, state_attr=state_attr, l_g=l_g)
-                preds = (e, f, s, m)
-                labels = (energies, forces, stresses, magmoms)
-            else:
-                g, lat, l_g, state_attr, energies, forces, stresses = batch
-                e, f, s, _ = self(g=g, lat=lat, state_attr=state_attr, l_g=l_g)
-                preds = (e, f, s)
-                labels = (energies, forces, stresses)
-        elif self.model.calc_charge:
-            g, lat, state_attr, energies, forces, stresses, charges = batch
-            e, f, s, _, q = self(g=g, lat=lat, state_attr=state_attr)
-            preds = (e, f, s, q.squeeze())
-            labels = (energies, forces, stresses, charges.squeeze())
-        elif self.model.calc_magmom:
-            g, lat, state_attr, energies, forces, stresses, magmoms = batch
-            e, f, s, _, m = self(g=g, lat=lat, state_attr=state_attr)
-            preds = (e, f, s, m)
-            labels = (energies, forces, stresses, magmoms)
+            g, lat, l_g, state_attr, *targets = batch
+            out = self(g=g, lat=lat, state_attr=state_attr, l_g=l_g)
         else:
-            g, lat, state_attr, energies, forces, stresses = batch
-            e, f, s, _ = self(g=g, lat=lat, state_attr=state_attr)
-            preds = (e, f, s)
-            labels = (energies, forces, stresses)
+            g, lat, state_attr, *targets = batch
+            out = self(g=g, lat=lat, state_attr=state_attr)
+
+        preds = (out[0], out[1], out[2], *out[4:])
+        labels = tuple(targets)
+        if self.model.calc_charge:
+            preds = (preds[0], preds[1], preds[2], preds[3].squeeze())
+            labels = (labels[0], labels[1], labels[2], labels[3].squeeze())
 
         num_atoms = g.batch_num_nodes() if BACKEND == "DGL" else torch.bincount(g.batch)
         results = self.loss_fn(
