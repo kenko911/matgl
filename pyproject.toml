@@ -167,11 +167,18 @@ lint.isort.required-imports = ["from __future__ import annotations"]
 "tests/**/*" = ["D", "PERF"]
 "docs/**/*" = ["D"]
 "examples/**/*" = ["D"]
+"scripts/**/*" = ["D", "PERF"]
 # Warp parses kernel function annotations at decoration time to compile to GPU
 # code, so ``from __future__ import annotations`` (I002) cannot be used. Tensor
 # decomposition components ``I``, ``A``, ``S`` (E741) follow physics conventions
 # and should not be renamed.
 "src/matgl/kernels/*" = ["E741", "I002"]
+# GRACE / ACE machinery uses ``l`` as the canonical angular-momentum index
+# throughout (matches the physics literature and the upstream gracemaker
+# implementation). Renaming would obscure the math.
+"src/matgl/layers/_grace.py" = ["E741"]
+"src/matgl/models/_grace.py" = ["E741"]
+"tests/models/test_grace_parity_tp.py" = ["E741"]
 
 [tool.pytest.ini_options]
 addopts = "--durations=30 --quiet -rXs --color=yes -p no:warnings"
@@ -179,7 +186,11 @@ addopts = "--durations=30 --quiet -rXs --color=yes -p no:warnings"
 [tool.mypy]
 ignore_missing_imports = true
 no_implicit_optional = false
-exclude = ['examples', 'tests']
+# ``dev`` holds local development scripts (refactor helpers, validators,
+# ad-hoc reproducers). Not part of the installed package, so we don't
+# typecheck it alongside ``src/matgl``. mypy v2 walks more files by
+# default than v1.20, which is why this exclusion is needed now.
+exclude = ['examples', 'tests', 'dev']
 
 [[tool.mypy.overrides]]
 module = ["requests.*", "tabulate.*"]
