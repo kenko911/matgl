@@ -1,4 +1,12 @@
-"""Implementation of Interatomic Potentials."""
+"""DGL implementation of :class:`Potential`.
+
+Wraps an energy-predicting DGL graph model (see :mod:`matgl.models`) and
+exposes a single ``forward`` that returns energies, forces, stresses, and
+(optionally) Hessian / partial charges / magnetic moments. Selected when
+``MATGL_BACKEND=DGL``; the PyG counterpart lives in
+:mod:`matgl.apps._pes_pyg`. See :mod:`matgl.apps.pes` for the unit
+conventions and backend-selection logic.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +33,38 @@ EV_PER_ANG3_TO_GPA = 160.21766208
 
 
 class Potential(nn.Module, IOMixIn):
-    """A class representing an interatomic potential."""
+    """Interatomic potential wrapping a DGL energy model.
+
+    ``Potential`` takes any DGL graph model that maps a graph to a scalar
+    per-graph energy (M3GNet, CHGNet, TensorNet, ...) and produces forces,
+    stress, and optionally the Hessian via PyTorch autograd. The wrapped
+    model's ``__call__`` is expected to accept the keyword arguments
+    ``g``, ``state_attr``, and ``l_g`` (and, when ``calc_charge=True``,
+    additionally ``lat``, ``total_charge``, ``ext_pot``, and ``lattice``),
+    and return a scalar energy tensor of shape ``(num_graphs,)``.
+
+    Outputs are denormalised with ``data_std * E_pred + data_mean`` and,
+    if ``element_refs`` is supplied, shifted by a per-atomic-number
+    reference summed over the structure (see :class:`AtomRef`). The ZBL
+    repulsion (:class:`NuclearRepulsion`) is optionally added when
+    ``calc_repuls=True``; it requires ``model.cutoff`` and
+    ``model.element_types`` to be defined.
+
+    Units (matching matgl's conventions):
+
+    * energy: eV per structure;
+    * forces: eV/A;
+    * stress: GPa, compressive-negative -- see the "Model Training"
+      section of the project README;
+    * Hessian (when ``calc_hessian=True``): eV/A^2, shape
+      ``(3*num_atoms, 3*num_atoms)``.
+
+    Save/load goes through :class:`~matgl.utils.io.IOMixIn`: ``self.save_args(locals())``
+    in ``__init__`` records the constructor arguments, so the standard
+    ``model.pt`` / ``state.pt`` / ``model.json`` triple round-trips the
+    wrapped model and all options. ``__version__`` is bumped whenever
+    serialised checkpoints would otherwise become invalid.
+    """
 
     __version__ = 3
 
@@ -114,16 +153,43 @@ class Potential(nn.Module, IOMixIn):
     ) -> tuple[torch.Tensor, ...]:
         """Compute energies, forces, stresses, and (optionally) the Hessian.
 
+        Stress is obtained by introducing a symbolic strain tensor
+        ``eps`` of shape ``(B, 3, 3)`` and using ``dE/d_eps`` from autograd,
+        scaled by ``1/V`` and converted to GPa.
+
         Args:
-            g: DGL graph
-            lat: lattice
-            state_attr: State attrs
-            l_g: Line graph
-            total_charge: total charge of the system
-            ext_pot: external potential (Natoms).
+            g: ``dgl.DGLGraph`` carrying ``g.ndata['frac_coords']`` and
+                ``g.edata['pbc_offset']`` as set by the matgl converters.
+                ``Potential.forward`` writes ``g.edata['lattice']``,
+                ``g.edata['pbc_offshift']``, and ``g.ndata['pos']`` in
+                place.
+            lat: lattice in Cartesian frame, shape ``(B, 3, 3)`` (or
+                ``(3, 3)`` for a single graph). Units of A.
+            state_attr: optional global state features, shape
+                ``(B, dim_state)``.
+            l_g: optional line graph used by three-body interactions
+                (M3GNet/CHGNet/SO3Net). May be ``None`` for two-body
+                models such as TensorNet.
+            total_charge: optional per-graph total charge, shape ``(B,)``,
+                consumed only when ``calc_charge=True``.
+            ext_pot: optional per-atom external potential, shape ``(N,)``,
+                consumed only when ``calc_charge=True``.
 
         Returns:
-            (energies, forces, stresses, hessian) or (energies, forces, stresses, hessian, site-wise properties)
+            A tuple whose contents depend on the active ``calc_*`` flags.
+            The base form is ``(energies, forces, stresses, hessian)`` --
+            quantities not requested are populated with a singleton
+            ``torch.zeros(1)`` placeholder rather than being omitted.
+            Optional site-wise quantities are appended in fixed order:
+
+            * ``calc_magmom and calc_charge`` -> ``(..., charges, magmoms)``;
+            * ``calc_magmom`` -> ``(..., magmoms)``;
+            * ``calc_charge`` -> ``(..., charges)``;
+            * ``debug_mode`` -> ``(energies, dE/dpos, dE/deps)``
+              (3-tuple, bypasses the standard layout).
+
+            Shapes: ``energies (B,)``, ``forces (N, 3)``, ``stresses``
+            in GPa with compressive-negative sign, ``hessian (3*N, 3*N)``.
         """
         # st (strain) for stress calculations
         st = lat.new_zeros([g.batch_size, 3, 3])

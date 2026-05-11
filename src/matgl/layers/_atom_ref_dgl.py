@@ -1,3 +1,12 @@
+"""DGL implementation of :class:`AtomRef`.
+
+``AtomRef`` adds a per-element constant offset to a model's prediction --
+the standard isolated-atom (or "elemental reference") correction used when
+training PES models on cohesive energies or absolute DFT energies. The
+backend-agnostic public name is re-exported from :mod:`matgl.layers`; the
+PyG counterpart lives in :mod:`matgl.layers._atom_ref_pyg`.
+"""
+
 from __future__ import annotations
 
 import dgl

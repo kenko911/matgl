@@ -1,3 +1,38 @@
+"""Radial and angular basis functions used to expand interatomic distances.
+
+This module gathers the bond-distance and angle expansions used by every
+matgl architecture. The two most-used radial bases are:
+
+* :class:`SphericalBesselFunction` -- the orthonormal :math:`j_l` basis on
+  ``[0, cutoff]`` used by M3GNet, CHGNet and SO3Net.
+* :class:`RadialBesselFunction` -- the simpler :math:`l=0` variant from
+  https://arxiv.org/abs/2003.03123 used by TensorNet and GRACE; supports
+  learnable frequencies.
+
+Alternative radial bases:
+
+* :class:`GaussianExpansion` -- fixed-center Gaussian RBF;
+* :class:`ExpNormalFunction` -- exponential-modulated Gaussian RBF used by
+  the original PaiNN paper.
+
+Angular expansions:
+
+* :class:`SphericalHarmonicsFunction` -- real spherical harmonics
+  evaluated from ``cos(theta)`` (and optionally ``phi``);
+* :class:`SphericalBesselWithHarmonics` -- the combined three-body
+  expansion used by M3GNet's line graph;
+* :class:`FourierExpansion` -- the periodic angular basis used by
+  CHGNet's bond-graph terms.
+
+Constants are pre-computed once during ``__init__`` and stored as
+non-persistent buffers so they ride along on ``.to(device)`` without
+appearing in the saved ``state_dict``.
+
+End users should normally reach for :class:`~matgl.layers.BondExpansion`
+in :mod:`matgl.layers._bond`, which selects one of the bases via a string
+flag.
+"""
+
 from __future__ import annotations
 
 from functools import lru_cache
